@@ -1,0 +1,37 @@
+from pyathena import connect
+from pyathena.pandas_cursor import PandasCursor
+
+# Connect to Athena
+conn = connect(s3_staging_dir='s3://my-bucket/athena-results/',
+               region_name='REGION',
+               aws_access_key_id='ACCESS_KEY',
+               aws_secret_access_key='SECRET_KEY')
+
+# Set the parameters for the query
+database = 'mydatabase'
+column_name = 'mycolumn'
+
+# Build the query to list all tables in the database
+query = f"SHOW TABLES IN {database}"
+
+# Execute the query
+with PandasCursor(conn) as cur:
+    tables = cur.execute(query).fetchall()
+
+# Extract the table names from the results
+table_names = [table[0] for table in tables]
+
+# Iterate over the table names
+for table_name in table_names:
+    # Build the query to check if the column exists in the table
+    query = f"SHOW COLUMNS IN {database}.{table_name} LIKE '{column_name}'"
+
+    # Execute the query
+    with PandasCursor(conn) as cur:
+        result = cur.execute(query).fetchall()
+
+    # Check if the column exists in the table
+    if result.empty:
+        print(f"Column {column_name} not found in table {table_name}.")
+    else:
+        print(f"Column {column_name} found in table {table_name}.")
