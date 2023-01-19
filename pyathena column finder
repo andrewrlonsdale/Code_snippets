@@ -35,3 +35,71 @@ for table_name in table_names:
         print(f"Column {column_name} not found in table {table_name}.")
     else:
         print(f"Column {column_name} found in table {table_name}.")
+        
+        
+        
+        
+        
+        
+import boto3
+
+# Connect to Athena
+athena = boto3.client('athena')
+
+# Set the parameters for the query
+database = 'mydatabase'
+column_name = 'mycolumn'
+
+# Build the query to list all tables in the database
+query = f"SHOW TABLES IN {database}"
+
+# Execute the query
+response = athena.start_query_execution(
+    QueryString=query,
+    ResultConfiguration={
+        'OutputLocation': 's3://my-bucket/athena-results/'
+    }
+)
+
+# Wait for the query to complete
+query_execution_id = response['QueryExecutionId']
+status = 'RUNNING'
+while status == 'RUNNING':
+    response = athena.get_query_execution(QueryExecutionId=query_execution_id)
+    status = response['QueryExecution']['Status']['State']
+
+# Get the results of the query
+result = athena.get_query_results(QueryExecutionId=query_execution_id)
+
+# Extract the table names from the results
+table_names = [row[0]['VarCharValue'] for row in result['ResultSet']['Rows'][1:]]
+
+# Iterate over the table names
+for table_name in table_names:
+    # Build the query to check if the column exists in the table
+    query = f"SHOW COLUMNS IN {database}.{table_name} LIKE '{column_name}'"
+
+    # Execute the query
+    response = athena.start_query_execution(
+        QueryString=query,
+        ResultConfiguration={
+            'OutputLocation': 's3://my-bucket/athena-results/'
+        }
+    )
+
+    # Wait for the query to complete
+    query_execution_id = response['QueryExecutionId']
+    status = 'RUNNING'
+    while status == 'RUNNING':
+        response = athena.get_query_execution(QueryExecutionId=query_execution_id)
+        status = response['QueryExecution']['Status']['State']
+
+    # Get the results of the query
+    result = athena.get_query_results(QueryExecutionId=query_execution_id)
+
+    # Check if the column exists in the table
+    if result['ResultSet']['Rows'][1:]:
+        print(f"Column {column_name} found in table {table_name}.")
+    else:
+        print(f"Column {column_name} not found in table {table_name}.")
+
