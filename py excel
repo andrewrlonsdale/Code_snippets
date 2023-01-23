@@ -1,8 +1,9 @@
 import pandas as pd
-import openpyxl
+from openpyxl import Workbook
+from openpyxl.pivot import PivotTable, PivotField
 
 # Create a new Excel file
-wb = openpyxl.Workbook()
+wb = Workbook()
 
 # Create a DataFrame
 data = {'Name': ['John', 'Mike', 'Sara'],
@@ -11,20 +12,21 @@ data = {'Name': ['John', 'Mike', 'Sara'],
 df = pd.DataFrame(data)
 
 # Create a new sheet and import the DataFrame to it
-ws = wb.create_sheet('Data')
-for row in df.itertuples():
+ws = wb.active
+ws.title = "Data"
+for row in data.values():
     ws.append(row)
 
 # Create a pivot table
 pt = wb.create_sheet('Pivot Table')
-pivot_range = 'Data!A1:C' + str(len(df))
-pivot_table = wb.create_pivot_table(pivot_range, pt, "A1")
-pivot_table.add_data_field('Salary', 'Sum')
+pivot_table = PivotTable(source_data=ws, table_range='A1:C4',
+                         pivot_table_range='A1:D5',
+                         data_fields=[PivotField(data_field='Salary',
+                                                function='SUM')])
+pt.append(pivot_table)
 
 # Add conditional formatting rule
-rule = openpyxl.formatting.rule.CellIsRule(operator='greaterThan', formula='50000', stopIfTrue=True)
-rule.formatting = openpyxl.styles.PatternFill(start_color="00FF0000", end_color="00FF0000", fill_type="solid")
-pivot_table.conditional_formatting.add('B2:B4', rule)
+pt.conditional_formatting.add('B2:B4', openpyxl.formatting.rule.CellIsRule(operator='greaterThan', formula='50000', stopIfTrue=True, fill=openpyxl.styles.PatternFill(start_color="00FF0000", end_color="00FF0000", fill_type="solid")))
 
 # Save the Excel file
 wb.save('data.xlsx')
