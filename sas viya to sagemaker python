@@ -1,3 +1,8 @@
+!pip install sasctl
+
+import sasctl
+session = sasctl.Session(host='your_sas_viya_hostname', auth=('username', 'password'))
+
 # List all the CAS libraries
 cas_libs = session.cas.libs.list()
 print(cas_libs)
