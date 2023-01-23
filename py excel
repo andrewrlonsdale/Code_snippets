@@ -1,5 +1,6 @@
 import pandas as pd
 from openpyxl import Workbook
+from openpyxl.utils.dataframe import dataframe_to_rows
 
 # Create a new Excel file
 wb = Workbook()
@@ -14,6 +15,11 @@ df = pd.DataFrame(data)
 ws = wb.create_sheet('Data')
 for r in dataframe_to_rows(df, index=True, header=True):
     ws.append(r)
+    
+ws = wb.create_sheet('Data')
+for row in df.itertuples():
+    ws.append(row)
+
 
 # Create a pivot table
 pt = wb.create_sheet('Pivot Table')
