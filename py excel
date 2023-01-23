@@ -1,0 +1,30 @@
+import pandas as pd
+from openpyxl import Workbook
+
+# Create a new Excel file
+wb = Workbook()
+
+# Create a DataFrame
+data = {'Name': ['John', 'Mike', 'Sara'],
+        'Age': [25, 30, 35],
+        'Salary': [50000, 60000, 70000]}
+df = pd.DataFrame(data)
+
+# Create a new sheet and import the DataFrame to it
+ws = wb.create_sheet('Data')
+for r in dataframe_to_rows(df, index=True, header=True):
+    ws.append(r)
+
+# Create a pivot table
+pt = wb.create_sheet('Pivot Table')
+pivot_range = 'Data!A1:C' + str(len(df))
+pivot_table = pt.add_table(pivot_range).pivot_table
+pivot_table.add_data_field('Salary', 'Sum')
+
+# Add conditional formatting rule
+rule = openpyxl.formatting.rule.CellIsRule(operator='greaterThan', formula=['50000'], stopIfTrue=True)
+rule.formatting = openpyxl.styles.PatternFill(start_color="00FF0000", end_color="00FF0000", fill_type="solid")
+pivot_table.conditional_formatting.add('B2:B4', rule)
+
+# Save the Excel file
+wb.save('data.xlsx')
