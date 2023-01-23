@@ -1,0 +1,113 @@
+# List all the CAS libraries
+cas_libs = session.cas.libs.list()
+print(cas_libs)
+
+# Create a new CAS library
+session.cas.libs.create(name='mylib')
+
+# Upload a CSV file to the new library
+session.cas.upload(path='path_to_csv_file', casout='mylib.mytable')
+
+# Run a simple data step
+session.cas.run('data mylib.mytable; set mylib.mytable; run;')
+
+# Run a SQL query
+query = 'SELECT COUNT(*) FROM mylib.mytable'
+results = session.cas.query(query)
+print(results)
+
+# Delete the CAS library
+session.cas.libs.delete('mylib')
+
+
+
+
+import sasctl
+import pandas as pd
+
+# Create a session to SAS Viya
+session = sasctl.Session(host='your_sas_viya_hostname', auth=('username', 'password'))
+
+# Retrieve data from a SAS Viya table as a pandas DataFrame
+data = session.cas.table('your_table_name')
+df = pd.DataFrame(data)
+
+# Display the DataFrame
+print(df)
+
+
+import sasctl
+import pandas as pd
+
+# Create a session to SAS Viya
+session = sasctl.Session(host='your_sas_viya_hostname', auth=('username', 'password'))
+
+# Run a SQL query and retrieve the data as a pandas DataFrame
+query = 'SELECT * FROM your_table_name'
+df = pd.DataFrame(session.cas.query(query))
+
+# Display the DataFrame
+print(df)
+
+
+
+
+
+df.to_csv('your_file_name.csv', index=False)
+import boto3
+
+# Create an S3 client
+s3 = boto3.client('s3')
+
+# Upload the file to S3
+bucket_name = 'your_bucket_name'
+file_name = 'your_file_name.csv'
+s3.upload_file(file_name, bucket_name, file_name)
+
+
+
+
+import boto3
+
+# Create an Athena client
+athena = boto3.client('athena')
+
+# Create a table in Athena
+table_name = 'your_table_name'
+database_name = 'your_database_name'
+query = f'CREATE EXTERNAL TABLE {database_name}.{table_name} (like the csv structure) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LOCATION 's3://{bucket_name}/{file_name}''
+athena.start_query_execution(QueryString=query)
+
+# Run a query to retrieve the data
+query = f'SELECT * FROM {database_name}.{table_name}'
+athena.start_query_execution(QueryString=query)
+
+
+
+
+
+
+
+import boto3
+
+# Create a Glue client
+glue = boto3.client('glue')
+
+# Create a Glue Crawler
+crawler_name = 'your_crawler_name'
+crawler_role = 'your_crawler_role'
+s3_target = 's3://your_bucket_name/your_file_name.csv'
+
+glue.create_crawler(
+    Name=crawler_name,
+    Role=crawler_role,
+    DatabaseName='your_database_name',
+    Targets={'S3Targets': [{'Path': s3_target}]},
+    SchemaChangeDetectionOptions={'EnableGlueSchemaAutoDiscover': 'true'}
+)
+glue.start_crawler(Name=crawler_name)
+
+status = glue.get_crawler(Name=crawler_name)['Crawler']['State']
+while status == 'RUNNING':
+    time.sleep(30)
+    status = glue.get_crawler(Name=crawler_name)['Crawler']['State']
