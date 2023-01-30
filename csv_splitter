@@ -1,0 +1,20 @@
+import csv
+
+def split_csv(file_name, chunk_size):
+    with open(file_name, 'r') as f:
+        reader = csv.reader(f)
+        header = next(reader)
+        chunk = 0
+        for i, row in enumerate(reader):
+            if i % chunk_size == 0:
+                if chunk != 0:
+                    outfile.close()
+                chunk += 1
+                outfile = open("{0}-{1}.csv".format(file_name.split(".")[0], chunk), 'w', newline='')
+                writer = csv.writer(outfile)
+                writer.writerow(header)
+            writer.writerow(row)
+    outfile.close()
+
+# Call the function with the file name and the desired chunk size
+split_csv("large_file.csv", 50000)
