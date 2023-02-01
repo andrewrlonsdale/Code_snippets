@@ -1,0 +1,64 @@
+def divide_chunks(l, n): 
+
+        # looping till length l 
+        for i in range(0, len(l), n):  
+            yield l[i:i + n] 
+n = 20000
+
+x = list(divide_chunks(l1, n)) 
+count = 0
+while count<len(x):
+
+    y = str(x[count]).replace("[","").replace("]","")
+    print("Iteration number: ",count)
+
+
+
+    data = cursor.execute("SELECT * from abc where col1 IN"+ (y))
+    data2 = data.fetchall()
+    data3 = data2 + data1
+    count+=1
+
+#add your all data3(list) in dataframe
+df=pd.DataFrame(data3,columns=['col1','col2'...])
+
+
+
+import boto3
+import pandas as pd
+
+# Initialize a connection to Amazon Athena
+conn = boto3.client("athena")
+
+# Define the SQL query
+sql = "SELECT * FROM my_database.my_table"
+
+# Specify the database and the output location
+database = "my_database"
+s3_output = "s3://my_bucket/output/"
+
+# Set the number of rows to be fetched in each chunk
+chunk_size = 10000
+
+# Execute the query and retrieve the results in chunks
+results = []
+cursor = conn.start_query_execution(
+    QueryString=sql,
+    ResultConfiguration={"OutputLocation": s3_output, "EncryptionConfiguration": {"EncryptionOption": "SSE_S3"}},
+    QueryExecutionContext={"Database": database}
+)["QueryExecutionId"]
+while True:
+    result = conn.get_query_results(
+        QueryExecutionId=cursor,
+        MaxResults=chunk_size
+    )
+    results.append(pd.DataFrame(result["ResultSet"]["Rows"]))
+    if "NextToken" not in result:
+        break
+    cursor = result["NextToken"]
+
+# Concatenate the chunks into a single DataFrame
+df = pd.concat(results)
+
+# Print the results
+print(df)
