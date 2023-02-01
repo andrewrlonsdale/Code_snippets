@@ -62,3 +62,30 @@ df = pd.concat(results)
 
 # Print the results
 print(df)
+
+
+import psycopg2
+import datetime
+
+# List of dates to be used in IN clause
+dates = [datetime.date(2022, 1, 1), datetime.date(2022, 2, 1), datetime.date(2022, 3, 1)]
+
+# Connect to the database
+conn = psycopg2.connect(database="mydatabase", user="mydatabaseuser", password="mypassword", host="localhost", port="5432")
+
+# Create a cursor object
+cur = conn.cursor()
+
+# Convert the dates in the list to strings
+date_strings = [date.strftime("%Y-%m-%d") for date in dates]
+
+# Use the %s placeholder in the IN clause and pass the list of dates as a tuple
+query = "SELECT * FROM mytable WHERE date_column IN %s"
+cur.execute(query, (tuple(date_strings),))
+
+# Fetch the results
+rows = cur.fetchall()
+
+# Close the cursor and the connection
+cur.close()
+conn.close()
