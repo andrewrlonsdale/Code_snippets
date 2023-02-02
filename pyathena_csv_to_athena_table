@@ -18,3 +18,39 @@ result = cursor.fetchone()
 
 # Print the number of rows
 print(result[0])
+
+
+import pyathena
+
+conn = pyathena.connect(aws_access_key_id='ACCESS_KEY',
+                        aws_secret_access_key='SECRET_KEY',
+                        s3_staging_dir='s3://YOUR_BUCKET/path',
+                        region_name='REGION')
+
+cursor = conn.cursor()
+
+import pandas as pd
+
+df = pd.DataFrame({'col1': [1, 2], 'col2': ['a', 'b']})
+
+df.to_csv('s3://YOUR_BUCKET/path/data.csv', index=False)
+
+
+table_name = 'YOUR_TABLE_NAME'
+
+create_table_query = f'''
+CREATE EXTERNAL TABLE IF NOT EXISTS {table_name} (
+    col1 INT,
+    col2 STRING
+)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+LOCATION 's3://YOUR_BUCKET/path/'
+TBLPROPERTIES ('skip.header.line.count'='1')
+'''
+
+cursor.execute(create_table_query)
+
+
+select_query = f'SELECT * FROM {table_name}'
+cursor.execute(select_query)
+print(cursor.fetchall())
