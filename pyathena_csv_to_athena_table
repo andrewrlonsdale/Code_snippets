@@ -1,0 +1,20 @@
+from pyathena import connect
+
+# Connect to AWS Athena
+conn = connect(aws_access_key_id='your_access_key_id',
+                aws_secret_access_key='your_secret_access_key',
+                s3_staging_dir='s3://your_bucket/path/to/staging/dir',
+                region_name='your_region')
+
+# Define the name of the table to count rows in
+table_name = "sample_table"
+
+# Execute a query to count the number of rows in the table
+cursor = conn.cursor()
+cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+
+# Get the result of the query
+result = cursor.fetchone()
+
+# Print the number of rows
+print(result[0])
