@@ -1,0 +1,38 @@
+# check if there are any NaN or missing values in the DataFrame
+if df.isnull().values.any():
+    print("DataFrame contains NaN or missing values")
+else:
+    print("DataFrame does not contain any NaN or missing values")
+
+# check the data types of columns in the DataFrame
+print(df.dtypes)
+
+
+# check if all columns have the same data type
+if (df.dtypes.nunique() == 1):
+    print("All columns have the same data type")
+else:
+    print("Columns have different data types")
+    
+    
+# check the number of duplicates in the DataFrame
+duplicates = df.duplicated().sum()
+if duplicates > 0:
+    print(f"DataFrame contains {duplicates} duplicate rows")
+else:
+    print("DataFrame does not contain any duplicate rows")
+
+# re-create the DataFrame from the source data
+df2 = pd.read_csv("source_data.csv")
+
+# check if the new DataFrame is the same as the original DataFrame
+if df.equals(df2):
+    print("DataFrame is not corrupted")
+else:
+    print("DataFrame is corrupted")
+
+# try performing an operation on the DataFrame
+try:
+    df.groupby("column_name").mean()
+except Exception as e:
+    print("Error performing operation: ", e)
