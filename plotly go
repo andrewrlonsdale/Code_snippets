@@ -1,0 +1,50 @@
+import (
+	"github.com/plotly/plotly.go"
+	"github.com/plotly/plotly.go/plot"
+)
+
+func main() {
+	// Load the data into a Plotly Go data object
+	data := plotly.LoadData("data.csv")
+
+	// Sort the data by the first two columns
+	data = data.Sort(0, 1)
+
+	// Group the data by the unique values in the 3rd column
+	grouped := data.GroupBy(2).Aggregate(map[int][]int{
+		0: {0},
+		1: {1, plot.Sum},
+		3: {3},
+		4: {4},
+	})
+
+	// Get the unique combinations of source s and f
+	uniqueCombinations := grouped.DropDuplicates([]int{3, 4})
+
+	// Create a Plotly Go plot for each unique combination of s and f
+	for _, row := range uniqueCombinations.Records() {
+		s := row.Get(3).String()
+		f := row.Get(4).String()
+
+		// Get the data for the current combination 
+		data := grouped.Filter(map[int]plot.FilterPredicate{
+			3: plot.Equal(s),
+			4: plot.Equal(f),
+		})
+
+		// Remove duplicates in the 3rd column
+		data = data.DropDuplicates(2)
+
+		// Create the Plotly Go plot
+		p := plot.New()
+		p.WithScatter(data, 0, 1).
+			WithColors(2).
+			WithTitle(s + ", " + f)
+
+		// Remove the duplicated traces from the plot
+		p.RemoveTraces(data.Duplicates(2))
+
+		// Show the plot
+		p.Show()
+	}
+}
