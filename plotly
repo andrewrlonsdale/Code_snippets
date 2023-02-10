@@ -1,0 +1,48 @@
+import plotly.express as px
+import pandas as pd
+
+# Load the data into a Pandas DataFrame
+df = pd.read_csv("data.csv")
+
+# Group the data by the unique values in the 3rd column
+grouped = df.groupby(df.columns[2]).count()
+
+# Create a Plotly line graph for each group
+for name, group in grouped:
+    fig = px.line(group, x=group.columns[0], y=group.columns[1], title=f"{name} ({group[group.columns[3]][0]}, {group[group.columns[4]][0]})")
+    fig.write_image(f"{name}.png")
+
+
+
+
+
+
+
+from plotly.subplots import make_subplots
+import plotly.express as px
+import pandas as pd
+
+#Load the data into a Pandas DataFrame
+
+df = pd.read_csv("data.csv")
+
+#Create a subplot with one x-axis and one y-axis
+
+fig = make_subplots(rows=1, cols=1)
+
+#Group the data by the 3rd column and calculate the count of rows for each unique value
+
+grouped = df.groupby(df.columns[2]).count()
+
+#Iterate over each group and add a trace to the subplot for each group
+
+for name, group in grouped:
+fig.add_trace(px.line(group, x=group.columns[0], y=group.columns[1], name=name))
+
+#Update the layout to show the source system and field name in the title
+
+fig.update_layout(title=f"Source System: {df[df.columns[3]][0]} Field Name: {df[df.columns[4]][0]}")
+
+#Save the plot as a PNG file
+
+fig.write_image("plot.png")
