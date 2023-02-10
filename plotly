@@ -46,3 +46,27 @@ fig.update_layout(title=f"Source System: {df[df.columns[3]][0]} Field Name: {df[
 #Save the plot as a PNG file
 
 fig.write_image("plot.png")
+
+
+
+
+
+
+
+
+import plotly.express as px
+import pandas as pd
+
+# Load the data into a Pandas DataFrame
+df = pd.read_csv("data.csv")
+
+# Group the data by the unique values in the 3rd column
+grouped = df.groupby(df.columns[2])
+
+# Create a Plotly line graph for each group
+def create_line_graph(group):
+    fig = px.line(group, x=group.columns[0], y=group.columns[1], title=f"{group[group.columns[2]].iloc[0]} ({group[group.columns[3]].iloc[0]}, {group[group.columns[4]].iloc[0]})")
+    fig.write_image(f"{group[group.columns[2]].iloc[0]}.png")
+
+grouped.apply(create_line_graph)
+
