@@ -70,3 +70,61 @@ def create_line_graph(group):
 
 grouped.apply(create_line_graph)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import plotly.express as px
+import pandas as pd
+
+# Load the data into a Pandas DataFrame
+df = pd.read_csv("data.csv")
+
+# Group the data by the unique values in the 3rd column
+grouped = df.groupby(df.columns[2]).agg({
+    df.columns[0]: "first",
+    df.columns[1]: "sum",
+    df.columns[3]: "first",
+    df.columns[4]: "first"
+})
+
+# Get the unique combinations
+unique_combinations = grouped.drop_duplicates(subset=[df.columns[3], df.columns[4]])
+
+# Create a Plotly line graph for each unique combination
+for i, row in unique_combinations.iterrows():
+    s = row[df.columns[3]]
+    f = row[df.columns[4]]
+
+    # Get the data for the current combination
+    data = grouped[(grouped[df.columns[3]] == s) & (grouped[df.columns[4]] == f)]
+
+    # Create the Plotly line graph
+    fig = px.line(data, x=df.columns[0], y=df.columns[1], color=df.columns[2], title=f"{s}, {f}")
+    fig.write_image(f"{s}_{f}.png")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
