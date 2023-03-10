@@ -1,0 +1,46 @@
+import boto3
+import pandas as pd
+from ipywidgets import interact, Dropdown, Text, Output, VBox
+
+s3 = boto3.client('s3')
+
+# get a list of all S3 bucket names
+response = s3.list_buckets()
+bucket_names = [bucket['Name'] for bucket in response['Buckets']]
+
+# create dropdown widgets for selecting a bucket and a folder path
+bucket_widget = Dropdown(options=bucket_names, description='S3 Bucket:')
+path_widget = Text(description='Folder Path:')
+
+# create an output widget for displaying the selected file
+file_output = Output()
+
+# define a function to list all objects in the selected bucket and folder path
+def list_files(bucket, path):
+    try:
+        response = s3.list_objects(Bucket=bucket, Prefix=path)
+        objects = [obj['Key'] for obj in response['Contents']]
+        for obj in objects:
+            print(obj)
+    except Exception as e:
+        print("Please select a valid bucket and folder path")
+
+# define a function to read a file into a Pandas DataFrame
+def read_file(bucket, file_path):
+    try:
+        obj = s3.get_object(Bucket=bucket, Key=file_path)
+        df = pd.read_csv(obj['Body'])
+        with file_output:
+            print(df)
+    except Exception as e:
+        print("Please select a valid file path")
+
+# create an interactive widget using the dropdowns, text input, and the read_file function
+def file_browser(bucket, path):
+    list_files(bucket, path)
+    file_widget = Dropdown(options=[obj['Key'] for obj in s3.list_objects(Bucket=bucket, Prefix=path)['Contents']])
+    file_widget.observe(lambda change: read_file(bucket, change.new), names='value')
+    return VBox([file_widget, file_output])
+
+# create a top-level interactive widget using the bucket and path widgets and the file_browser function
+interact(file_browser, bucket=bucket_widget, path=path_widget);
