@@ -1,0 +1,25 @@
+import ipywidgets as widgets
+from IPython.display import display
+import pandas as pd
+
+file_upload = widgets.FileUpload(accept='.csv, .xlsx, .parquet')
+display(file_upload)
+
+options = ['Option 1', 'Option 2', 'Option 3']
+dropdown = widgets.Dropdown(options=options)
+display(dropdown)
+
+button = widgets.Button(description='Run')
+display(button)
+
+def on_button_click(b):
+    file_contents = file_upload.value[list(file_upload.value.keys())[0]]['content']
+    df = pd.read_csv(io.BytesIO(file_contents)) # read the file contents into a pandas dataframe
+    if dropdown.value == 'Option 1':
+        # run code for Option 1
+    elif dropdown.value == 'Option 2':
+        # run code for Option 2
+    elif dropdown.value == 'Option 3':
+        # run code for Option 3
+
+button.on_click(on_button_click)
