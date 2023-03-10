@@ -1,0 +1,44 @@
+import pandas as pd
+import xlsxwriter
+
+# create a pandas dataframe with some data
+data = {'Name': ['Alice', 'Bob', 'Charlie', 'David', 'Emily'],
+        'Age': [25, 30, 35, 40, 45],
+        'Salary': [50000, 60000, 70000, 80000, 90000]}
+df = pd.DataFrame(data)
+
+# create a new Excel file
+workbook = xlsxwriter.Workbook('example.xlsx')
+
+# add a worksheet to the Excel file and write the dataframe to it
+worksheet = workbook.add_worksheet('Data')
+for i, col in enumerate(df.columns):
+    worksheet.write(0, i, col)
+for i, row in enumerate(df.values):
+    for j, value in enumerate(row):
+        worksheet.write(i+1, j, value)
+
+# create a pivot table from the dataframe
+pivot_table = df.pivot_table(index=['Age'], values=['Salary'], aggfunc=sum)
+
+# add a new worksheet to the Excel file and write the pivot table to it
+pivot_worksheet = workbook.add_worksheet('Pivot Table')
+for i, col in enumerate(pivot_table.columns):
+    pivot_worksheet.write(0, i, col)
+for i, row in enumerate(pivot_table.values):
+    for j, value in enumerate(row):
+        pivot_worksheet.write(i+1, j, value)
+
+# apply conditional formatting to the pivot table based on a value
+format1 = workbook.add_format({'bg_color': '#FFC7CE',
+                               'font_color': '#9C0006'})
+format2 = workbook.add_format({'bg_color': '#C6EFCE',
+                               'font_color': '#006100'})
+for i, value in enumerate(pivot_table['Salary']):
+    if value < 70000:
+        pivot_worksheet.set_row(i+1, None, format1)
+    else:
+        pivot_worksheet.set_row(i+1, None, format2)
+
+# close the Excel file
+workbook.close()
