@@ -1,0 +1,21 @@
+import boto3
+from ipywidgets import interact, Dropdown
+
+s3 = boto3.client('s3')
+
+# get a list of all S3 bucket names
+response = s3.list_buckets()
+bucket_names = [bucket['Name'] for bucket in response['Buckets']]
+
+# create a dropdown widget for selecting a bucket
+bucket_widget = Dropdown(options=bucket_names, description='S3 Bucket:')
+
+# create a function to list all objects in the selected bucket
+def list_objects(bucket):
+    response = s3.list_objects(Bucket=bucket)
+    objects = [obj['Key'] for obj in response['Contents']]
+    for obj in objects:
+        print(obj)
+
+# create an interactive widget using the dropdown and the list_objects function
+interact(list_objects, bucket=bucket_widget);
