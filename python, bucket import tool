@@ -1,0 +1,49 @@
+import boto3
+import pandas as pd
+import ipywidgets as widgets
+from IPython.display import display
+
+# create a boto3 S3 client
+s3 = boto3.client('s3')
+
+# define a function to list all files in a bucket
+def list_files(bucket):
+    objects = s3.list_objects_v2(Bucket=bucket)
+    files = []
+    for obj in objects['Contents']:
+        files.append(obj['Key'])
+    return files
+
+# create a dropdown widget to select the S3 bucket
+buckets = ['bucket1', 'bucket2', 'bucket3']
+bucket_dropdown = widgets.Dropdown(options=buckets, description='S3 bucket:')
+display(bucket_dropdown)
+
+# create a button to list all files in the selected bucket
+list_button = widgets.Button(description='List files')
+display(list_button)
+
+# create a dropdown widget to select a file from the listed files
+file_dropdown = widgets.Dropdown(description='Select file:')
+display(file_dropdown)
+
+# create a button to display the selected file
+display_button = widgets.Button(description='Display file')
+display(display_button)
+
+# define a function to list all files in the selected bucket
+def on_list_button_click(b):
+    files = list_files(bucket_dropdown.value)
+    file_dropdown.options = files
+
+list_button.on_click(on_list_button_click)
+
+# define a function to display the selected file
+def on_display_button_click(b):
+    file_key = file_dropdown.value
+    obj = s3.get_object(Bucket=bucket_dropdown.value, Key=file_key)
+    file_content = obj['Body'].read()
+    df = pd.read_csv(io.BytesIO(file_content))
+    display(df)
+
+display_button.on_click(on_display_button_click)
