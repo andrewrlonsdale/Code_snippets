@@ -1,0 +1,24 @@
+Start a SageMaker Instance:
+
+Log in to your AWS account and go to the SageMaker console.
+Click on "Create notebook instance" and configure the settings according to your requirements.
+Choose the instance type and specify the IAM role for your instance.
+Click on "Create notebook instance" and wait for it to start.
+Navigate using the file browser within the notebook:
+
+Once the instance is created, click on "Open JupyterLab".
+In the left panel, you will see the file browser. You can navigate to the desired directory by clicking on the folders.
+To create a new folder or file, right-click on the parent folder and select "New Folder" or "New File".
+To upload a file, click on "Upload" in the file browser and select the file from your local machine.
+Run and edit notebooks:
+
+To create a new notebook, click on "File" in the JupyterLab menu and select "New Notebook".
+Choose the desired kernel (e.g., Python 3) and start writing code in the first cell.
+To run a cell, click on the "Run" button in the toolbar or press "Shift+Enter". The output will appear below the cell.
+To edit a cell, simply click on it and start typing.
+Troubleshooting:
+
+If you encounter any issues while starting the instance, make sure that your IAM role has the necessary permissions.
+If you cannot access the JupyterLab interface, try restarting the instance or clearing your browser cache.
+If you encounter errors while running a notebook, check the error message and make sure that your code is correct.
+If you encounter issues with the file browser, try refreshing the page or clearing your browser cache.
