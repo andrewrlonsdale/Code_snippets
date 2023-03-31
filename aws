@@ -22,3 +22,24 @@ If you encounter any issues while starting the instance, make sure that your IAM
 If you cannot access the JupyterLab interface, try restarting the instance or clearing your browser cache.
 If you encounter errors while running a notebook, check the error message and make sure that your code is correct.
 If you encounter issues with the file browser, try refreshing the page or clearing your browser cache.
+
+
+
+
+Troubleshooting tips:
+
+If you encounter errors while running the code, make sure that you have installed all the required libraries and that you have copied and pasted the code correctly.
+
+Check the error message to see if it provides any hints on what went wrong.
+
+Try restarting your kernel and running the code again.
+
+Make sure that your data is in the correct format and that it matches the requirements of the code.
+
+If you are still having issues, try searching online for solutions or asking for help on a forum or community.
+
+
+Open your SageMaker notebook instance.
+
+Run the first cell to install the required libraries:
+
