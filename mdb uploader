@@ -26,3 +26,31 @@ for table in tables:
         table=table,
         mode='overwrite'
     )
+
+
+
+import pyodbc
+import pandas as pd
+
+# Set up a connection to the MDB file using pyodbc
+conn_str = r'DRIVER={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=path/to/your_mdb_file.mdb;'
+conn = pyodbc.connect(conn_str)
+
+# Get a list of table names in the MDB file
+tables = [table.table_name for table in conn.cursor().tables()]
+
+# Loop over the table names and load each table into a Pandas dataframe
+for table in tables:
+    df = pd.read_sql(f'SELECT * FROM {table}', conn)
+
+    # Write the dataframe to Parquet using AWS Glue Wrangler
+    import awswrangler as wr
+
+    wr.s3.to_parquet(
+        df=df,
+        path=f's3://your-bucket/{table}.parquet',
+        dataset=True,
+        database='your_database',
+        table=table,
+        mode='overwrite'
+    )
