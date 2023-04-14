@@ -48,3 +48,25 @@ func main() {
 		p.Show()
 	}
 }
+
+
+
+import plotly.graph_objects as go
+import pandas as pd
+import numpy as np
+
+# create a sample DataFrame
+df = pd.DataFrame({'x': [1, 2, 3, 4, 5], 'y': [2, 4, np.nan, 6, np.nan]})
+
+# replace the NaN values with None
+df['y'] = df['y'].fillna(None)
+
+# create a plotly figure
+fig = go.Figure()
+fig.add_scatter(x=df['x'], y=df['y'], mode='lines')
+
+# set the y-axis range
+fig.update_layout(yaxis_range=[0, 8])
+
+# show the plotly figure
+fig.show()
