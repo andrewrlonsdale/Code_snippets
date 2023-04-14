@@ -1,0 +1,28 @@
+!pip install mdbtools
+
+import subprocess
+import pandas as pd
+
+filename = 'your_mdb_file.mdb'
+
+# Get a list of table names in the MDB file
+tables = subprocess.check_output(['mdb-tables', '-1', filename]).decode().split()
+
+# Loop over the table names and export each table to a CSV file
+for table in tables:
+    subprocess.call(['mdb-export', '-I', 'csv', '-q', '"', filename, table], stdout=open(f'{table}.csv', 'w'))
+
+    # Load the CSV file into a Pandas dataframe
+    df = pd.read_csv(f'{table}.csv')
+
+    # Write the dataframe to Parquet using AWS Glue Wrangler
+    import awswrangler as wr
+
+    wr.s3.to_parquet(
+        df=df,
+        path=f's3://your-bucket/{table}.parquet',
+        dataset=True,
+        database='your_database',
+        table=table,
+        mode='overwrite'
+    )
