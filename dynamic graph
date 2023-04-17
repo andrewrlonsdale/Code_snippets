@@ -32,6 +32,7 @@ def create_graph(df, x_col, y_col, trace_cols, graph_type, graph_style):
     
 def render_ui():
     file_upload = widgets.FileUpload(accept='.csv', multiple=False)
+    database_dropdown = widgets.Dropdown(options=wr.athena.list_databases(catalog_name='AwsDataCatalog')['DatabaseName'], description='Database:')
     database_dropdown = widgets.Dropdown(options=boto3.client('athena').list_databases()['DatabaseList'], description='Database:')
     table_dropdown = widgets.Dropdown(description='Table:')
     query_textbox = widgets.Textarea(description='Query:', placeholder='Enter SQL Query', rows=5, layout={'visibility': 'hidden'})
