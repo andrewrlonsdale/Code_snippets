@@ -82,3 +82,96 @@ def render_ui():
                        graph_style_dropdown,
                        render_button])
     display(ui)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import awswrangler as wr
+
+def render_ui():
+    file_upload = widgets.FileUpload(accept='.csv', multiple=False)
+    data_type_radio_buttons = widgets.RadioButtons(options=['CSV', 'AWS Athena'], description='Data Type:')
+    database_textbox = widgets.Text(description='Database:')
+    table_textbox = widgets.Text(description='Table:')
+    query_textbox = widgets.Textarea(description='Query:', placeholder='Enter SQL Query', rows=5, layout={'visibility': 'hidden'})
+    x_dropdown = widgets.Dropdown(description='X Column:')
+    y_dropdown = widgets.Dropdown(description='Y Column:')
+    trace_dropdown = widgets.SelectMultiple(description='Trace Columns:')
+    graph_type_dropdown = widgets.Dropdown(options=['scatter', 'line'], description='Graph Type:')
+    graph_style_dropdown = widgets.Dropdown(options=plt.style.available, description='Graph Style:')
+    render_button = widgets.Button(description='Render Graph')
+
+    def on_data_type_change(change):
+        if change.new == 'CSV':
+            file_upload.layout.visibility = 'visible'
+            database_textbox.layout.visibility = 'hidden'
+            table_textbox.layout.visibility = 'hidden'
+            query_textbox.layout.visibility = 'hidden'
+        elif change.new == 'AWS Athena':
+            file_upload.layout.visibility = 'hidden'
+            database_textbox.layout.visibility = 'visible'
+            table_textbox.layout.visibility = 'visible'
+            query_textbox.layout.visibility = 'visible'
+    
+    def on_render_button_click(b):
+        if data_type_radio_buttons.value == 'CSV':
+            df = pd.read_csv(next(iter(file_upload.value)))
+        else:
+            database = database_textbox.value
+            table = table_textbox.value
+            query = f"SELECT * FROM {database}.{table}"
+            df = wr.athena.read_sql_query(query, ctas_approach=False)
+        create_graph(df, x_dropdown.value, y_dropdown.value, trace_dropdown.value, graph_type_dropdown.value, graph_style_dropdown.value)
+    
+    data_type_radio_buttons.observe(on_data_type_change, names='value')
+    render_button.on_click(on_render_button_click)
+    
+    ui = widgets.VBox([data_type_radio_buttons,
+                       file_upload,
+                       database_textbox,
+                       table_textbox,
+                       query_textbox,
+                       x_dropdown,
+                       y_dropdown,
+                       trace_dropdown,
+                       graph_type_dropdown,
+                       graph_style_dropdown,
+                       render_button])
+    display(ui)
