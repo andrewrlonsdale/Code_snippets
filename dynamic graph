@@ -1,0 +1,83 @@
+import pandas as pd
+import awswrangler as wr
+import ipywidgets as widgets
+import matplotlib.pyplot as plt
+
+
+
+def get_data(file_path=None, database=None, table=None, query=None):
+    if file_path:
+        df = pd.read_csv(file_path)
+    else:
+        df = wr.athena.read_sql_query(query, database, ctas_approach=False)
+    return df
+
+def create_graph(df, x_col, y_col, trace_cols, graph_type, graph_style):
+    fig, ax = plt.subplots()
+    if graph_type == 'scatter':
+        for trace_col in trace_cols:
+            ax.scatter(df[x_col], df[trace_col], label=trace_col, alpha=0.7, s=50, edgecolors='none')
+    elif graph_type == 'line':
+        for trace_col in trace_cols:
+            ax.plot(df[x_col], df[trace_col], label=trace_col, alpha=0.7, linewidth=2)
+    else:
+        raise ValueError('Unsupported graph type')
+    ax.set_xlabel(x_col)
+    ax.set_ylabel(y_col)
+    ax.set_title(graph_type.capitalize() + ' Plot')
+    ax.legend()
+    plt.style.use(graph_style)
+    plt.show()
+    
+    
+def render_ui():
+    file_upload = widgets.FileUpload(accept='.csv', multiple=False)
+    database_dropdown = widgets.Dropdown(options=wr.athena.list_databases(), description='Database:')
+    table_dropdown = widgets.Dropdown(description='Table:')
+    query_textbox = widgets.Textarea(description='Query:', placeholder='Enter SQL Query', rows=5, layout={'visibility': 'hidden'})
+    data_type_radio_buttons = widgets.RadioButtons(options=['CSV', 'AWS Athena'], description='Data Type:')
+    x_dropdown = widgets.Dropdown(description='X Column:')
+    y_dropdown = widgets.Dropdown(description='Y Column:')
+    trace_dropdown = widgets.SelectMultiple(description='Trace Columns:')
+    graph_type_dropdown = widgets.Dropdown(options=['scatter', 'line'], description='Graph Type:')
+    graph_style_dropdown = widgets.Dropdown(options=plt.style.available, description='Graph Style:')
+    render_button = widgets.Button(description='Render Graph')
+    
+    def on_data_type_change(change):
+        if change.new == 'CSV':
+            file_upload.layout.visibility = 'visible'
+            database_dropdown.layout.visibility = 'hidden'
+            table_dropdown.layout.visibility = 'hidden'
+            query_textbox.layout.visibility = 'hidden'
+        elif change.new == 'AWS Athena':
+            file_upload.layout.visibility = 'hidden'
+            database_dropdown.layout.visibility = 'visible'
+            table_dropdown.layout.visibility = 'visible'
+            query_textbox.layout.visibility = 'visible'
+    
+    def on_database_change(change):
+        table_dropdown.options = wr.athena.list_tables(database=change.new)
+    
+    def on_render_button_click(b):
+        if data_type_radio_buttons.value == 'CSV':
+            df = pd.read_csv(next(iter(file_upload.value)))
+        else:
+            df = wr.athena.read_sql_query(query_textbox.value, database_dropdown.value, ctas_approach=False)
+        create_graph(df, x_dropdown.value, y_dropdown.value, trace_dropdown.value, graph_type_dropdown.value, graph_style_dropdown.value)
+    
+    data_type_radio_buttons.observe(on_data_type_change, names='value')
+    database_dropdown.observe(on_database_change, names='value')
+    render_button.on_click(on_render_button_click)
+    
+    ui = widgets.VBox([data_type_radio_buttons,
+                       file_upload,
+                       database_dropdown,
+                       table_dropdown,
+                       query_textbox,
+                       x_dropdown,
+                       y_dropdown,
+                       trace_dropdown,
+                       graph_type_dropdown,
+                       graph_style_dropdown,
+                       render_button])
+    display(ui)
