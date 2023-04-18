@@ -42,3 +42,10 @@ for i, value in enumerate(pivot_table['Salary']):
 
 # close the Excel file
 workbook.close()
+
+
+# add the table of contents
+doc.add_heading('Table of Contents', level=1)
+toc = doc.add_paragraph()
+toc.add_run().add_field('TOC \o "1-3" \h \z \u')
+doc.add_page_break()
