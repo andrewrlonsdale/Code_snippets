@@ -1,0 +1,54 @@
+Finding Repositories:
+To find a repository in Bitbucket, log in to your account and navigate to the dashboard.
+On the left-hand side of the dashboard, you'll see a section labeled "Repositories."
+You can browse through your own repositories or the repositories of others by clicking on the "Explore" button.
+Alternatively, you can use the search bar at the top of the page to find a specific repository.
+
+Code:
+Once you've found a repository, click on it to view its contents.
+You should see a "Code" tab at the top of the page. Click on this to view the repository's files.
+From here, you can navigate through the files and folders in the repository.
+To view a file's contents, simply click on the file.
+
+Blame:
+To see who made changes to a specific line of code, click on the file to view its contents.
+You should see a "Blame" button at the top of the page. Click on this to see who made each change to the file.
+You can hover over a specific line of code to see who made changes to that line and when those changes were made.
+
+Pull Requests:
+To create a pull request, navigate to the repository's main page and click on the "Create pull request" button.
+From here, you can select the branch you want to merge into and the branch you want to merge from.
+You can also add a title and description for your pull request.
+Once you've created the pull request, other team members can review the changes and provide feedback.
+You can view the status of your pull request and any feedback you receive by navigating to the "Pull requests" tab on the repository's main page.
+
+
+how to download code from a repository in Bitbucket:
+Navigate to the repository's main page and click on the "Code" tab.
+Click on the "Download" button, located on the right-hand side of the page.
+You will then see a dropdown menu with the option to download either a ZIP file or a TAR file. Choose the file type that you prefer.
+After you've selected your file type, the download will begin automatically.
+Once the download is complete, you can unzip the file (if it's a ZIP file) to access the repository's code.
+
+how to use Bitbucket with AWS SageMaker notebooks:
+Sign up for a Bitbucket account if you don't have one already.
+Create a new repository in Bitbucket that will hold your SageMaker notebook files. You can do this by clicking on the "+" sign in the left-hand navigation bar, then selecting "Repository."
+In SageMaker, create a new notebook instance or use an existing one.
+In the SageMaker Jupyter Notebook interface, navigate to the folder where you want to create your new notebook.
+Click the "New" button, then select "Terminal" from the dropdown menu.
+In the terminal window, navigate to the folder where you want to create your new notebook and run the following command to clone your Bitbucket repository:
+bash
+Copy code
+git clone <repository_url>
+Replace <repository_url> with the HTTPS or SSH URL of your Bitbucket repository. You can find this URL on the Bitbucket repository page.
+After the repository is cloned, navigate back to the Jupyter Notebook interface.
+Refresh the page and navigate to the folder where you cloned the repository. You should see the notebook files in the folder.
+To make changes to the notebooks, open them in the SageMaker Jupyter Notebook interface and edit them as needed.
+When you're ready to save your changes, navigate back to the terminal window and run the following commands to commit and push your changes to Bitbucket:
+bash
+Copy code
+git add .
+git commit -m "Commit message"
+git push
+Replace "Commit message" with a brief description of the changes you made.
+Your changes should now be pushed to your Bitbucket repository.
