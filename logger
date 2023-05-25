@@ -1,43 +1,51 @@
 import os
-import boto3
-import pandas as pd
-import logging
-from datetime import datetime
+import datetime
+import awswrangler as wr
 
-# Log file configuration
-LOG_FILE = 'file_processing.log'
-LOG_FORMAT = '%(asctime)s - %(levelname)s - %(message)s'
+# Define the paths for the folders
+input_folder = '/path/to/input/folder'
+completed_folder = '/path/to/completed/folder'
+log_folder = os.path.join(completed_folder, 'Log')
 
-# Create a logger and configure log file
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-file_handler = logging.FileHandler(LOG_FILE)
-file_handler.setLevel(logging.INFO)
-formatter = logging.Formatter(LOG_FORMAT)
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
+# Create the Log folder if it doesn't exist
+if not os.path.exists(log_folder):
+    os.makedirs(log_folder)
 
-# Get the list of files in the S3 input folder
-response = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=S3_INPUT_FOLDER)
+# Get the current date to add to the log filename
+date_today = datetime.datetime.now().strftime("%Y-%m-%d")
 
-# Process each file
-for file in response['Contents']:
-    file_key = file['Key']
-    file_name = os.path.basename(file_key)
+# Create the log filename with the current date
+log_filename = os.path.join(log_folder, f"{date_today}.log")
+
+# Open the log file in append mode to add new runs
+with open(log_filename, "a") as log_file:
+    # Get a list of files in the input folder
+    files = os.listdir(input_folder)
     
-    # Move the file to the completed folder
-    new_key = f'{S3_COMPLETED_FOLDER}/{file_name}'
-    s3_client.copy_object(Bucket=BUCKET_NAME, CopySource=f'{BUCKET_NAME}/{file_key}', Key=new_key)
-    s3_client.delete_object(Bucket=BUCKET_NAME, Key=file_key)
-    
-    # Read the file data into a DataFrame (modify this according to your file format)
-    file_object = s3_client.get_object(Bucket=BUCKET_NAME, Key=new_key)
-    df = pd.read_csv(file_object['Body'])
-    
-        # Log the file processing
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    log_message = f"Processed file '{file_name}' at {timestamp}"
-    logger.info(log_message)
-    print(log_message)
-
-print("All files processed.")
+    # Loop through each file and create a table in AWS
+    for file in files:
+        try:
+            # Create the table name from the file name
+            table_name = os.path.splitext(file)[0]
+            
+            # Create the full path to the input file
+            input_path = os.path.join(input_folder, file)
+            
+            # Create the full path to the completed file
+            completed_path = os.path.join(completed_folder, file)
+            
+            # Create the table in AWS
+            wr.s3.to_parquet(input_path, f"aws://my-bucket/{table_name}")
+            
+            # Move the file to the completed folder
+            os.rename(input_path, completed_path)
+            
+            # Write to the log file that the table was created
+            log_file.write(f"{table_name} table was created from {file}\n")
+            
+        except Exception as e:
+            # Write to the log file that there was an error
+            log_file.write(f"Error creating table from {file}: {e}\n")
+            
+            # Move the file back to the input folder
+            os.rename(completed_path, input_path)
