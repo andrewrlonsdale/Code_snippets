@@ -49,3 +49,7 @@ with open(log_filename, "a") as log_file:
             
             # Move the file back to the input folder
             os.rename(completed_path, input_path)
+            
+            
+            
+            files = [file for file in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, file))]
