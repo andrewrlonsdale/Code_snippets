@@ -4,7 +4,7 @@ import awswrangler as wr
 
 # Define the paths for the folders
 input_folder = '/path/to/input/folder'
-completed_folder = '/path/to/completed/folder'
+completed_folder = os.path.dirname(os.path.abspath(__file__))
 log_folder = os.path.join(completed_folder, 'Log')
 
 # Create the Log folder if it doesn't exist
