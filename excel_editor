@@ -1,0 +1,22 @@
+!pip install ipython-spreadsheet
+
+
+
+
+from ipysheet import sheet, cell, cell_range
+from IPython.display import display
+import pandas as pd
+
+# Load the CSV file
+df = pd.read_csv('path/to/your/csv/file.csv')
+
+# Display the spreadsheet
+s = sheet(rows=df.shape[0], columns=df.shape[1])
+cell_range(value=df.values.tolist(), start='A1', sheet=s)
+display(s)
+
+# Edit the spreadsheet
+# ... Interact with the spreadsheet in the Jupyter Notebook interface ...
+
+# Save changes to CSV file
+df.to_csv('path/to/your/csv/file.csv', index=False)
