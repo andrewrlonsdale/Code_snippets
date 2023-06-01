@@ -165,7 +165,9 @@ if not existing_values.empty:
 
             
             
-            
+new_rows = new_rows[~new_rows.duplicated()]
+new_rows = new_rows[~(new_rows['Column1'].isin(df['Column1']) & new_rows['Column2'].isin(df['Column2']))]
+       
             
             
             
