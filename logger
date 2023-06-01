@@ -152,7 +152,17 @@ else:
 
             
             
-            
+duplicates = new_rows[new_rows.duplicated()]
+if not duplicates.empty:
+    print("Duplicate rows found in the new data. Please remove them and try again.")
+    # Optionally, you can choose to handle duplicates based on your requirements.
+
+# Check if values already exist in the DataFrame
+existing_values = df[df['Column1'].isin(new_rows['Column1']) & df['Column2'].isin(new_rows['Column2'])]
+if not existing_values.empty:
+    print("Some values already exist in the CSV file. Please remove them from the new data and try again.")
+    # Optionally, you can choose to handle existing values based on your requirements.
+
             
             
             
