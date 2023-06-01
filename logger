@@ -131,7 +131,25 @@ else:
             
             
             
-            
+import pandas as pd
+
+# Read the CSV file into a DataFrame
+df = pd.read_csv('your_file.csv')
+
+# Specify the filename
+filename = 'your_filename.csv'
+
+# Find the row where 'filename' is located
+row = df[df['Column_Name_For_Filename'] == filename]
+
+# Check if the row exists
+if not row.empty:
+    # Get the adjacent column value in the row
+    adjacent_value = row['Adjacent_Column_Name'].values[0]
+    print(adjacent_value)
+else:
+    print("Filename not found in the CSV file.")
+
             
             
             
