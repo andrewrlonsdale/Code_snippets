@@ -170,7 +170,21 @@ new_rows = new_rows[~(new_rows['Column1'].isin(df['Column1']) & new_rows['Column
        
             
             
-            
+import pandas as pd
+
+# Read the CSV file into a DataFrame
+df = pd.read_csv('your_file.csv')
+
+# Specify the conditions for row removal
+condition1 = df['Column1'] == value1
+condition2 = df['Column2'] == value2
+
+# Remove the row that satisfies the conditions
+df = df.drop(df[condition1 & condition2].index)
+
+# Write the updated DataFrame back to the CSV file
+df.to_csv('your_file.csv', index=False)
+
             
             
             
