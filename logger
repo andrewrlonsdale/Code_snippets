@@ -53,3 +53,128 @@ with open(log_filename, "a") as log_file:
             
             
             files = [file for file in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, file))]
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+import os
+import datetime
+import awswrangler as wr
+
+folder_path = "path/to/folder"  # Replace with the actual folder path
+
+# Check if the folder exists
+if not os.path.exists(folder_path):
+    print("Folder does not exist!")
+    exit()
+
+# Get a list of files in the folder
+files = [file for file in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, file))]
+
+# Check if there are any files in the folder
+if len(files) > 0:
+    print("Files found in the folder:")
+    for file_name in files:
+        print(file_name)
+
+    # Create a subfolder called "complete" if it doesn't exist
+    complete_folder_path = os.path.join(folder_path, "complete")
+    if not os.path.exists(complete_folder_path):
+        os.makedirs(complete_folder_path)
+
+    # Create a log file
+    log_file_path = os.path.join(folder_path, "log.txt")
+
+    # Move files to the "complete" subfolder and create tables in AWS
+    with open(log_file_path, "a") as log_file:
+        current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_file.write(f"Log created at: {current_time}\n")
+        log_file.write("Files processed:\n")
+        for file_name in files:
+            file_path = os.path.join(folder_path, file_name)
+            new_file_path = os.path.join(complete_folder_path, file_name)
+
+            try:
+                # Move the file to the "complete" subfolder
+                os.rename(file_path, new_file_path)
+                log_file.write(f"{file_name} - moved\n")
+
+                # Create a table in AWS using AWS Wrangler
+                table_name = os.path.splitext(file_name)[0]
+                wr.s3.to_parquet(new_file_path, f"my-bucket/{table_name}.parquet", index=False)
+                log_file.write(f"{table_name} - table created in AWS\n")
+            except Exception as e:
+                log_file.write(f"{file_name} - error occurred\n")
+                log_file.write(f"Error details: {str(e)}\n")
+
+                # If an error occurs, move the file back to the original folder
+                os.rename(new_file_path, file_path)
+                log_file.write(f"{file_name} - moved back to original folder\n")
+
+    print("Files processed.")
+    print(f"Log file created: {log_file_path}")
+else:
+    print("No files found in the folder.")
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
