@@ -43,3 +43,4 @@ Open your SageMaker notebook instance.
 
 Run the first cell to install the required libraries:
 
+df['column'] = df['column'].astype(str).str.replace('(', '').str.replace(')', '').str.replace(',', '')
