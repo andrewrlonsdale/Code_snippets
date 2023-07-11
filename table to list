@@ -30,3 +30,33 @@ output_file = 'column_stats.xlsx'
 output_df.to_excel(output_file)
 
 print("Column statistics saved to", output_file)
+
+
+
+import pandas as pd
+
+# Assuming you already have a pandas cursor object named 'cursor'
+# Assuming you have a list of column names named 'column_list'
+
+# Create a dictionary to store the min and max values for each column
+column_stats = {}
+
+# Loop through each column in the list
+for column in column_list:
+    # Perform an SQL query to fetch the min and max values for the current column
+    sql_query = f"SELECT MIN({column}), MAX({column}) FROM your_table"
+    cursor.execute(sql_query)
+    result = cursor.fetchone()
+    min_value, max_value = result
+
+    # Store the min and max values in the dictionary
+    column_stats[column] = {'Min': min_value, 'Max': max_value}
+
+# Convert the dictionary to a pandas DataFrame
+output_df = pd.DataFrame.from_dict(column_stats, orient='index')
+
+# Save the DataFrame to an Excel file
+output_file = 'column_stats.xlsx'
+output_df.to_excel(output_file)
+
+print("Column statistics saved to", output_file)
