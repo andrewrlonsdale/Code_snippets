@@ -1,0 +1,179 @@
+Introduction (5 minutes)
+
+Welcome and introductions.
+Brief overview of GitLab and its value proposition.
+Outline of what you will cover in the presentation, specifically mentioning GitLab's support for Jupyter Notebooks and AWS SageMaker.
+Concepts & Terminology (5 minutes)
+
+Explanation of key GitLab concepts and terminology such as repositories, branches, commits, issues, merge requests, etc.
+Explanation of Continuous Integration (CI) / Continuous Deployment (CD) and how GitLab supports this.
+Briefly introduce Jupyter Notebooks and AWS SageMaker, and why they are valuable tools for data scientists and machine learning engineers.
+Live Demo (15 minutes)
+
+GitLab basics (7 minutes): Same as the previous plan, but keep it brief to leave time for the Jupyter/SageMaker part.
+
+Working with Jupyter Notebooks in GitLab (4 minutes): Show how to create a new Jupyter Notebook file in a GitLab repository, edit it, and commit changes. Show the rendered view of a Jupyter Notebook file in GitLab.
+
+Integrating with AWS SageMaker (4 minutes): Demonstrate how to use GitLab's CI/CD to automate the training of machine learning models on AWS SageMaker. Show an example of a .gitlab-ci.yml file that does this. Make sure to explain how AWS credentials are securely stored as environment variables in GitLab.
+
+Key Features (5 minutes)
+
+Discuss some of the other features that make GitLab stand out, such as its built-in CI/CD, its support for Docker, its Auto DevOps feature, security features, etc.
+Q&A (5 minutes)
+
+Leave some time at the end for questions.
+
+
+
+[Begin with a welcoming slide on the screen]
+
+Speaker: "Good morning/afternoon/evening, everyone! I'd like to extend a warm welcome to each one of you and thank you for taking time to join us for this exciting presentation about GitLab. My name is [Your Name], and I am [Your Position/Role].
+
+[Switch to a slide featuring GitLab's logo and tagline]
+
+Today, we're here to explore GitLab, an industry-leading tool designed to simplify and expedite the DevOps lifecycle. GitLab is an all-in-one platform that fosters collaboration, accelerates delivery, and reduces the cost of change. It's much more than just source control—it's a complete DevOps platform that provides solutions for each phase of the software development cycle.
+
+GitLab can support development teams of any size, whether you're a single developer working on a personal project, or part of a massive organization with hundreds of developers.
+
+[Switch to a slide outlining the presentation agenda]
+
+In the next half hour, we will cover:
+
+Important GitLab concepts and terminology
+A live demonstration of GitLab in action, where we will create and manage a project, work with repositories, handle issues and merge requests, and demonstrate the impressive CI/CD capabilities
+A special focus on how GitLab works with Jupyter Notebooks, which are widely used for data analysis and visualization, as well as with AWS SageMaker, a fully managed service that enables developers and data scientists to quickly build, train, and deploy machine learning models
+A look at some of GitLab's key features that make it stand out among other DevOps tools
+Lastly, we'll have a Q&A session where you can ask any questions you might have about GitLab.
+Our main goal today is to provide you with a clear understanding of what GitLab is, how it can be used, and why it's an excellent choice for teams that are looking for a robust, unified solution for their software development needs.
+
+So, without further ado, let's dive into the exciting world of GitLab!"
+
+This script is just a guide and can be adapted according to your needs and style of presentation. Remember, your primary goal during the introduction is to set the stage for the rest of the presentation and get your audience excited about what they are about to learn.
+
+
+
+
+
+
+
+
+[Switch to a slide with the title "Concepts & Terminology"]
+
+Speaker: "Before we dive into our live demo, let's familiarize ourselves with some important concepts and terminology in GitLab. Understanding these will make the demo easier to follow."
+
+[Switch to a slide with GitLab terminologies]
+
+Repositories: "A repository, or repo for short, is where your project lives. It contains all of your project's files and the entire revision history. You can think of it as your project's folder, with a complete history of changes."
+
+Branches: "A branch is a parallel version of a repository. It's contained within the repository, but does not affect the primary or 'master' branch, allowing you to work freely without disrupting the 'live' version. When you've made the changes you want to make, you can merge your branch back into the master branch to publish your changes."
+
+Commits: "A commit, or 'revision', is an individual change to a file (or set of files). It's like when you save a file, except with Git, every time you save it creates a unique ID (a.k.a. the 'SHA' or 'hash') that allows you to keep record of what changes were made when and by who. Commits usually contain a commit message which is a brief description of what changes were made."
+
+Issues: "Issues are a great way to keep track of tasks, enhancements, and bugs for your projects. They’re kind of like email—except they can be shared and discussed with the rest of your team."
+
+Merge Requests: "A Merge Request (MR) is a request to merge one branch into another. Use merge requests to visualize and collaborate on proposed changes to source code."
+
+[Switch to a slide introducing Continuous Integration/Continuous Deployment]
+
+Speaker: "Now, let's talk about Continuous Integration and Continuous Deployment, often shortened as CI/CD. These are practices in the software development process.
+
+Continuous Integration refers to the practice of merging all developers' working copies to a shared mainline several times a day.
+
+Continuous Deployment is the practice of delivering software in short cycles by automatically releasing every change to the software that passes the automated testing phase.
+
+These practices are fundamental for improving software quality, reducing validation time and speeding up product delivery. GitLab has a powerful built-in CI/CD system which we will see during our live demo."
+
+Speaker: "We'll also be talking about Jupyter Notebooks and AWS SageMaker during our demo.
+
+Jupyter Notebooks are open-source web applications that allow you to create and share documents that contain live code, equations, visualizations, and narrative text. They're especially popular among data scientists.
+
+AWS SageMaker, on the other hand, is a cloud-based service that helps you build, train, and deploy machine learning models quickly.
+
+These two tools are commonly used in data science and machine learning workflows, and we'll see how they can be integrated with GitLab."
+
+Speaker: "Now that we're familiar with some key terms and concepts, let's move on to our live demonstration."
+
+
+
+
+
+
+Speaker: "Welcome to the live demo part of our presentation. Let's start by exploring GitLab's basic functionalities."
+
+GitLab basics (7 minutes)
+
+Creating a new project (2 minutes): "To create a new project in GitLab, simply click on 'New Project', give it a name, and select the visibility level. You also have the option to import code from an existing repository. Let's create a simple demo project now."
+
+Cloning a repository and making changes (2 minutes): "Once the project is created, you can clone the repository to your local system. I'm going to use the command line for this, but you can also use a Git client if you prefer. After cloning, you can make changes to the code, commit these changes, and push them back to GitLab. Let's do that."
+
+Using the issue tracking system (1.5 minutes): "GitLab also has a built-in issue tracking system. Let me show you how to create a new issue, assign it to a team member, and add labels. Issues are a great way to track tasks and bugs."
+
+Creating a merge request (1.5 minutes): "After making changes, you can create a merge request to incorporate these changes into the main code. Let me show you how to create a merge request, review changes, and merge the request."
+
+Working with Jupyter Notebooks in GitLab (4 minutes)
+
+Creating a new Jupyter Notebook file (2 minutes): "Now, let's switch gears and see how GitLab works with Jupyter Notebooks. To create a new Jupyter Notebook in GitLab, simply click 'New File', select 'Jupyter Notebook' and start writing your code and text. Jupyter Notebooks render directly in GitLab, making them perfect for documentation, data visualization, and other tasks. Let me show you a simple example."
+
+Committing and viewing a Jupyter Notebook (2 minutes): "After editing the notebook, you can commit it just like any other file. Once committed, the Jupyter Notebook can be viewed directly in GitLab, which renders the notebook in a readable format. Let's do that now."
+
+Integrating with AWS SageMaker (4 minutes)
+
+Using GitLab's CI/CD to automate ML model training (4 minutes): "Finally, let's see how GitLab integrates with AWS SageMaker. We won't have time to train an actual machine learning model today, but I'll show you how to set up a GitLab CI/CD pipeline to automatically train a model on SageMaker whenever changes are pushed to your repository. This pipeline can be defined using a .gitlab-ci.yml file. Let me show you an example of what such a file might look like."
+[Switch back to presentation slides]
+
+Speaker: "And that's a wrap on our live demo. As you can see, GitLab provides a unified, end-to-end solution for your software development needs, and it plays nicely with other tools such as Jupyter Notebooks and AWS SageMaker. Now, let's take a look at some of GitLab's key features."
+
+
+
+
+[Switch to a slide with the title "Key Features of GitLab"]
+
+Speaker: "Now that we have seen GitLab in action, let's talk about some of its key features that make it a powerful tool for your DevOps needs."
+
+Built-in Continuous Integration/Delivery
+
+[Switch to a slide showing GitLab's CI/CD pipelines]
+
+Speaker: "As we've seen in the demo, GitLab provides robust support for Continuous Integration and Continuous Delivery right out of the box. You can easily set up automated pipelines to build, test, and deploy your code. This makes it easy to maintain high-quality code and deliver improvements to your users quickly."
+
+Auto DevOps
+
+[Switch to a slide explaining Auto DevOps]
+
+Speaker: "GitLab's Auto DevOps feature automates a lot of the setup and execution of common development tasks. For instance, it can automatically build, test, and deploy your applications based on a best-practice CI/CD pipeline. It can also provide performance and testing feedback, and monitor your apps. This feature helps you save time and focus on writing code."
+
+Docker Support
+
+[Switch to a slide showing Docker integration]
+
+Speaker: "GitLab has built-in container registry support, which allows you to build, push, and share Docker images within your team. This goes hand-in-hand with the CI/CD functionality, enabling you to build Docker images for each commit and use them to deploy your apps."
+
+Security and Compliance
+
+[Switch to a slide showing security features]
+
+Speaker: "Security is a top concern in software development. GitLab helps you to keep your code secure with built-in static and dynamic security testing, dependency scanning, and container scanning. It also provides compliance dashboards and audit reports to help you meet your compliance needs."
+
+Integration with Jupyter Notebooks and AWS SageMaker
+
+[Switch to a slide showing Jupyter and AWS SageMaker integration]
+
+Speaker: "As we've seen in the demo, GitLab seamlessly integrates with other important tools like Jupyter Notebooks and AWS SageMaker. This allows teams to include data science and machine learning workflows directly into their DevOps processes."
+
+Speaker: "These are just a few of GitLab's many features. Depending on your team's needs, you might also find value in its project management features, its customizable workflows, its support for Kubernetes, and much more."
+
+[Switch back to a slide with your contact information or the Q&A title]
+
+Speaker: "And with that, we conclude the main part of our presentation. I hope you now have a good understanding of what GitLab can do for you. I'd be happy to answer any questions you might have."
+
+
+
+
+
+
+
+
+
+
+
+
