@@ -170,7 +170,52 @@ Speaker: "And with that, we conclude the main part of our presentation. I hope y
 
 
 
+Navigation:
 
+Once you log into GitLab, you'll find a navigation bar at the top of the screen. This is where you can access Projects, Groups, and More.
+
+The Projects section is where all your GitLab projects are stored.
+
+Groups allows you to bundle multiple projects together and manage access at a group level.
+
+The More section lets you access snippets of code, help resources, and settings.
+
+You can search for specific projects, issues, or merge requests using the search bar on the top navigation bar.
+
+On your individual project page, the left sidebar allows you to access Repository, Issues, Merge Requests, CI/CD, and more.
+
+Versioning:
+
+In GitLab, each project has a version history. You can view the history by navigating to your project, then selecting Repository > Commits in the left sidebar. This shows a list of all commits made in the project along with the author, date, and commit message.
+Comparing Code:
+
+Code comparison can be done by navigating to Repository > Compare in the left sidebar of your project.
+
+Here, you can select two points in your project (like different commits or branches) and GitLab will show the differences between them.
+
+Merge Requests (Pull Requests in GitHub terminology):
+
+Merge Requests (MRs) are requests to merge changes from one branch into another.
+
+To create a merge request, navigate to Merge Requests > New Merge Request in the left sidebar of your project. You'll then select your source branch (where your changes are) and your target branch (where you want your changes to go).
+
+After creating a merge request, other team members can review your changes, discuss them, and eventually approve the merge request to incorporate the changes.
+
+Cloning a Repository:
+
+Cloning a repository creates a local copy of that repository on your machine.
+
+To clone a repository, navigate to the main page of your project and find the Clone button near the top-right corner. This will give you an URL you can use to clone the project.
+
+Copy this URL, then go to your local development environment and use the command git clone <copied URL>.
+
+Additional Features:
+
+Issue Tracking: GitLab provides built-in issue tracking. You can create issues to track bugs, tasks, or ideas, and you can assign them to specific team members, label them, and discuss them right in GitLab.
+
+Continuous Integration/Continuous Deployment (CI/CD): GitLab has a built-in CI/CD system. You can define a pipeline in a .gitlab-ci.yml file that will automatically build, test, and (optionally) deploy your code every time you push a commit.
+
+Docker Support: GitLab also provides Docker support. You can build, store, and share Docker images right in GitLab.
 
 
 
