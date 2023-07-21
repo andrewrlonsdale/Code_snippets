@@ -1,0 +1,76 @@
+When dealing with data such as in a banking environment, additional precautions and practices must be put in place to ensure data security and privacy. Here are some best practices that consider these specifics:
+
+1. **Version Controls**:
+
+    - **Small, Frequent Changes**: Same as before, make atomic commits to easily identify problematic changes. Always use clear and concise commit messages.
+    
+    - **Use Branches and Merge Requests**: Continue using feature branches for new features or bug fixes. 
+    
+    - **Rebase Instead of Merge**: To maintain a clean project history, use `git rebase` for incorporating changes into the main project.
+
+2. **Access Controls**:
+
+    - **User Roles and Permissions**: Use roles with varying levels of access depending on user responsibilities within the team. Restrict who can merge into `master` or `main`.
+    
+    - **SSO Integration**: GitLab supports SSO and it should be utilized to ensure only authorized users have access and to enhance user management.
+
+    - **Protected Branches and Tags**: Protect sensitive branches like `master` or `main`. Also consider protecting tags, which are often used as a part of release process.
+
+3. **Changes**:
+
+    - **Code Reviews**: Code reviews should be an essential part of your workflow. The four-eyes principle should be used, meaning at least two team members should approve merge requests.
+    
+    - **CI/CD Pipelines**: Use GitLab's CI/CD features to automate testing and deployment, but also consider adding steps to check for any kind of sensitive data that shouldn't be there.
+
+    - **Issue Tracking**: Continue using GitLab's built-in issue tracking, but make sure all issues are created in a manner that doesn't disclose sensitive information.
+
+4. **Host Systems**:
+
+    - **Self-Hosted GitLab**: Given the sensitivity of banking data, a self-hosted GitLab instance is often recommended. This gives the bank full control over the data, access controls, and security measures.
+
+5. **Security**:
+
+    - **Regular Updates**: Regularly update your GitLab instance to ensure the latest security patches and features are in place.
+
+    - **Use Two Factor Authentication (2FA)**: Even with SSO, 2FA should still be enabled for an additional layer of security.
+
+    - **Secret Detection**: Use GitLab's secret detection in your CI/CD pipelines to prevent accidental commit of sensitive data.
+
+    - **Dependency Scanning and Container Scanning**: Utilize these built-in security tools to automatically scan your project's dependencies for vulnerabilities.
+
+    - **Data Encryption**: Make sure that all customer data is stored in an encrypted format both in transit and at rest. This includes databases, backups, and other storage mediums.
+
+    - **Regular Audits**: Regularly audit access logs and changes to track any unusual activity and make sure that only authorized users have access to the data.
+
+
+
+Writing good commit messages is an important part of code management. A good commit message is helpful not just for your future self, but also for your teammates who might be reviewing your code. Here are some best practices to follow when writing your commit messages:
+
+1. **First Line**: The first line of your commit message should be a short summary (50 characters or less) of the changes that have been made. This line should be written in the imperative mood, as if you were giving a command. For example:
+
+    - "Add login functionality for users"
+    - "Fix error handling in payment gateway"
+    - "Update user profile interface"
+
+2. **Body**: After the first line, you can optionally add a more detailed explanation of the changes in a separate paragraph. This is a good place to explain the reasoning behind the change, or to provide more context. For example:
+
+    - "Add login functionality for users. This was necessary to allow users to access their personal banking information. The login process includes a two-factor authentication for security purposes."
+    - "Fix error handling in payment gateway. The previous implementation was not correctly catching exceptions in certain cases, leading to incorrect error messages being shown to the user."
+    - "Update user profile interface. The new design is more user-friendly and provides more information at a glance."
+
+3. **Use Bullet Points**: If the commit has broad scope, bullet points can be useful in the body of the commit message to list the changes:
+
+    ```
+    Update user profile interface
+    
+    - Add new field for phone number
+    - Move 'Save' button to bottom of page
+    - Increase size of profile picture
+    ```
+
+4. **Reference Issues**: If your project uses an issue tracker, it can be helpful to reference relevant issues in your commit messages. This helps link your changes to the reported bugs or requested features that they address. For example:
+
+    - "Fix login bug (closes #123)"
+    - "Add feature requested in #456"
+
+By following these guidelines, you can write clear, helpful commit messages that make it easier to understand the history of your project.
