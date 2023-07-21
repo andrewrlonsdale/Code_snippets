@@ -73,4 +73,70 @@ Writing good commit messages is an important part of code management. A good com
     - "Fix login bug (closes #123)"
     - "Add feature requested in #456"
 
-By following these guidelines, you can write clear, helpful commit messages that make it easier to understand the history of your project.
+By following these guidelines, you can write clear, helpful commit messages that make it easier to understand the history of your project.#
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sure, below are some best practices for code management using GitLab:
+
+1. **Version Controls**:
+   
+    - **Commit Small, Frequent Changes**: It's best to make small, atomic commits that do each a single thing. That way, if a problem is discovered later, you can isolate the problematic change more easily. 
+
+    - **Meaningful Commit Messages**: Your commit messages should be clear, brief explanations of the changes that have been made. The first line should be a summary and optionally followed by a blank line and a more detailed explanation.
+
+    - **Use Branches and Merge Requests**: Feature branches should be used for working on new features or bug fixes. This isolates changes and makes it easier to incorporate them into the main project.
+
+    - **Rebase Instead of Merge When Possible**: When you're ready to put your changes into the main project, use `git rebase` to put your changes on top of the changes everyone else has made. This can make the project history easier to read.
+
+2. **Access Controls**:
+
+    - **Use User Roles and Permissions**: In GitLab, you can assign roles with varying levels of access to each project member. 
+
+    - **Private Repositories**: Keep your repositories private until they are ready to be public. Only give access to those who need it.
+
+    - **Protected Branches**: Protect branches like `master` or `main` to prevent direct pushes and only allow changes through merge requests.
+
+3. **Changes**:
+
+    - **Code Reviews**: Code reviews should be a part of your workflow. When a merge request is raised, it should be reviewed and approved by at least one other team member before it's merged.
+
+    - **CI/CD Pipelines**: GitLab has robust CI/CD features that allow you to automate parts of your development process, like testing and deployment.
+
+    - **Issue Tracking**: Use the built-in issue tracking in GitLab. This allows you to link commits and merge requests to specific issues, providing more context for the changes.
+
+4. **Host Systems**:
+
+    - **Choose Between Self-Hosted or GitLab-Hosted**: Depending on your needs, you can either self-host GitLab on your own servers or use the GitLab-hosted version. Self-hosting gives you more control and customization, while the GitLab-hosted version can be easier to set up and maintain.
+
+5. **Security**:
+
+    - **Regular Updates**: Make sure to update your GitLab instance regularly to receive the latest security patches and features.
+
+    - **Use Two Factor Authentication (2FA)**: Enable 2FA for an added layer of security on your GitLab account.
+
+    - **Secret Detection**: GitLab offers secret detection as part of their CI/CD pipelines. This can help prevent accidental commits of sensitive information.
+
+    - **Dependency Scanning and Container Scanning**: Use GitLab's built-in security tools to automatically scan your project's dependencies for known vulnerabilities.
+
+Remember that the specific practices you should follow can depend on your specific project, team, and needs. It's always a good idea to discuss these with your team and decide together what practices to follow.
+
