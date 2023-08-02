@@ -68,8 +68,17 @@ result
 
 
 
+# Create a set of tuples representing the unique combinations
+unique_combinations_set = set(tuple(x) for x in unique_combinations[['group1', 'group2']].to_records(index=False))
 
+# Define a function to check if a row's group1 and group2 values are in the unique combinations set
+def filter_combinations(row):
+    return (row['group1'], row['group2']) in unique_combinations_set
 
+# Apply the filter to the original DataFrame
+filtered_df = original_df[original_df.apply(filter_combinations, axis=1)]
+
+filtered_df
 
 
 
