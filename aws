@@ -83,7 +83,16 @@ filtered_df
 
 
 
+# Creating a set of unique combinations from the original DataFrame
+original_combinations_set = set(tuple(x) for x in original_df[['group1', 'group2']].drop_duplicates().to_records(index=False))
 
+# Finding the unique combinations from the CSV file that are not found in the original DataFrame
+missing_combinations = unique_combinations_set - original_combinations_set
+
+# Finding the unique combinations from the original DataFrame that are not found in the CSV file
+extra_combinations = original_combinations_set - unique_combinations_set
+
+missing_combinations, extra_combinations
 
 
 
