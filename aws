@@ -44,3 +44,47 @@ Open your SageMaker notebook instance.
 Run the first cell to install the required libraries:
 
 df['column'] = df['column'].astype(str).str.replace('(', '').str.replace(')', '').str.replace(',', '')
+
+
+
+
+
+
+
+
+
+
+
+
+
+def find_date_with_max_count(group):
+    max_count_index = group['count'].idxmax()
+    return group.loc[max__count_index, 'date']
+
+# Group by the unique columns and apply the custom function
+result = df.groupby(['group1', 'group2']).apply(find_date_with_max_count).reset_index(name='date_with_max_count')
+
+result
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
