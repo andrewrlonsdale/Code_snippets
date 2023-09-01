@@ -1,0 +1,59 @@
+import ipywidgets as widgets
+import boto3
+import pandas as pd
+from IPython.display import display
+
+# Text boxes for input
+database_name_widget = widgets.Text(
+    value='',
+    placeholder='Enter database name',
+    description='Database:',
+    disabled=False
+)
+
+table_name_widget = widgets.Text(
+    value='',
+    placeholder='Enter table name',
+    description='Table:',
+    disabled=False
+)
+
+# Button to execute query
+execute_button = widgets.Button(
+    description='Execute Query',
+    disabled=False,
+    button_style='info', 
+    tooltip='Execute Query',
+    icon='check'
+)
+
+# Output widget to display results
+output = widgets.Output()
+
+# Function to execute when button is clicked
+def on_button_click(button):
+    with output:
+        output.clear_output()  # Clear previous results
+        
+        # Fetch values from widgets
+        database_name = database_name_widget.value
+        table_name = table_name_widget.value
+        
+        # Use boto3 to interact with AWS Glue DataBrew (assuming the query service is AWS DataBrew)
+        client = boto3.client('databrew')
+        
+        # Define the SQL query
+        query = f"SELECT * FROM {database_name}.{table_name}"
+        
+        # Execute the query (this is a pseudo-code, adjust according to the actual API)
+        response = client.execute_sql(QueryString=query)
+        
+        # Convert the result to a pandas DataFrame (adjust as needed)
+        df = pd.DataFrame(response['Results'])
+        
+        display(df)
+
+execute_button.on_click(on_button_click)
+
+# Display the widgets
+display(database_name_widget, table_name_widget, execute_button, output)
