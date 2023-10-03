@@ -31,3 +31,29 @@ if captured.stderr:
     print(captured.stderr)
 else:
     print("Library 'some_package' installed successfully!")
+
+
+
+import pandas as pd
+
+# Flatten the dictionary structure
+data = []
+for category, items in help_dict.items():
+    for key, details in items.items():
+        if isinstance(details, dict):
+            description = details.get('description', '')
+            example = details.get('example', '')
+        else:
+            description = details
+            example = ''
+        data.append([category, key, description, example])
+
+# Convert the flattened structure into a DataFrame
+help_df = pd.DataFrame(data, columns=['Category', 'Key', 'Description', 'Example'])
+
+# Create a function that displays the help table
+def display_help():
+    return help_df
+
+# Test the function
+display_help()
