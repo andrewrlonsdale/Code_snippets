@@ -20,3 +20,14 @@ def suppress_output(line, cell):
 !pip install some_package
 
 print("This package has been installed!")
+
+
+
+%%capture captured
+!pip install some_package
+
+# After the above cell, check the captured output
+if captured.stderr:
+    print(captured.stderr)
+else:
+    print("Library 'some_package' installed successfully!")
