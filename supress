@@ -1,0 +1,22 @@
+from IPython.core.magic import register_cell_magic
+from IPython.display import display, Javascript
+
+@register_cell_magic
+def suppress_output(line, cell):
+    """
+    Suppresses the output of a cell in Jupyter Notebook.
+    """
+    with open('/dev/null', 'w') as fnull:
+        with contextlib.redirect_stdout(fnull), contextlib.redirect_stderr(fnull):
+            exec(cell)
+    return
+
+
+
+
+
+%%suppress_output
+
+!pip install some_package
+
+print("This package has been installed!")
