@@ -125,4 +125,28 @@ print(federation_setup)
 
 
 
+import boto3
+import re
 
+def extract_emails_from_trust_policies():
+    # Create an IAM client
+    iam = boto3.client('iam')
+    
+    # Get roles
+    roles = iam.list_roles()
+    
+    # Email regex pattern
+    email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+    
+    # Extract emails from trust policies
+    emails = []
+    for role in roles['Roles']:
+        policy_document = role.get('AssumeRolePolicyDocument', {})
+        if policy_document:
+            policy_str = str(policy_document)
+            emails.extend(re.findall(email_pattern, policy_str))
+    
+    return emails
+
+emails = extract_emails_from_trust_policies()
+print(emails)
