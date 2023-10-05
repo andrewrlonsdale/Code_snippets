@@ -100,7 +100,27 @@ missing_combinations, extra_combinations
 
 
 
+import boto3
 
+def get_federation_setup():
+    # Create an IAM client
+    iam = boto3.client('iam')
+    
+    # Get list of SAML providers
+    saml_providers = iam.list_saml_providers()
+    saml_details = [{"Arn": provider['Arn'], "CreateDate": provider['CreateDate']} for provider in saml_providers['SAMLProviderList']]
+    
+    # Get roles
+    roles = iam.list_roles()
+    role_details = [{"RoleName": role['RoleName'], "Arn": role['Arn'], "AssumeRolePolicyDocument": role['AssumeRolePolicyDocument']} for role in roles['Roles']]
+    
+    return {
+        "SAMLProviders": saml_details,
+        "Roles": role_details
+    }
+
+federation_setup = get_federation_setup()
+print(federation_setup)
 
 
 
