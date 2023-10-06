@@ -182,3 +182,60 @@ snippets['snippets'].append(new_snippet)
 # Save the updated snippets back to the file
 with open(snippets_path, 'w') as f:
     json.dump(snippets, f, indent=4)
+
+
+
+import os
+
+# Define the custom CSS to center the menus and shortcuts
+# (This is a basic example; you might need to adjust the CSS based on your specific needs)
+css_content = """
+/* Center the text of the main Jupyter menu items */
+#menubar .dropdown-menu {
+    text-align: center;
+}
+
+/* Center the text of the toolbar items */
+#maintoolbar .btn {
+    text-align: center;
+}
+"""
+
+# Locate the custom CSS directory for Jupyter
+jupyter_dir = os.path.expanduser("~/.jupyter")
+custom_css_dir = os.path.join(jupyter_dir, "custom")
+custom_css_path = os.path.join(custom_css_dir, "custom.css")
+
+# Ensure the custom directory exists
+if not os.path.exists(custom_css_dir):
+    os.makedirs(custom_css_dir)
+
+# Append or create the custom.css file with the new styles
+with open(custom_css_path, 'a') as f:
+    f.write(css_content)
+
+print(f"Custom CSS has been written to {custom_css_path}. Restart Jupyter Notebook to see the changes.")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
