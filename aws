@@ -222,7 +222,17 @@ print(f"Custom CSS has been written to {custom_css_path}. Restart Jupyter Notebo
 
 
 
+from IPython.core.getipython import get_ipython
+from IPython.display import display, Markdown
 
+# Create a new code cell
+code = '''print("This is a code cell")'''
+get_ipython().set_next_input(code)
+
+# Create a new markdown cell
+markdown_text = '''# This is a markdown cell
+Some text here.'''
+display(Markdown(markdown_text))
 
 
 
