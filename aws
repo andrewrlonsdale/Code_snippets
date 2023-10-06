@@ -150,3 +150,35 @@ def extract_emails_from_trust_policies():
 
 emails = extract_emails_from_trust_policies()
 print(emails)
+
+
+
+
+
+
+
+
+import json
+import os
+
+# Define the path to the snippets.json file
+# This is a common location, but you might need to adjust based on your installation
+snippets_path = os.path.expanduser("~/.local/share/jupyter/nbextensions/snippets/snippets.json")
+
+# Read the current snippets from the file
+with open(snippets_path, 'r') as f:
+    snippets = json.load(f)
+
+# Display the current snippets
+print(snippets)
+
+# Example: Add a new snippet
+new_snippet = {
+    "name": "Example Snippet",
+    "code": ["# This is an example snippet", "print('Hello, world!')"]
+}
+snippets['snippets'].append(new_snippet)
+
+# Save the updated snippets back to the file
+with open(snippets_path, 'w') as f:
+    json.dump(snippets, f, indent=4)
