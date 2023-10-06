@@ -237,7 +237,13 @@ display(Markdown(markdown_text))
 
 
 
+from IPython.display import display, Javascript
 
+def run_cell_below():
+    display(Javascript('IPython.notebook.execute_cell()'))
+
+# Use the function to run the cell below
+run_cell_below()
 
 
 
