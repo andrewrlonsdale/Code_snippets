@@ -117,3 +117,105 @@ else:
 
 column_data_df
 
+
+
+
+
+
+
+
+
+
+# Placeholder for column details
+column_details = []
+
+# Check each column
+for index, row in column_data.iterrows():
+    column_name = row['column_name']
+    data_type = row['data_type']
+
+    # Details for the current column
+    column_info = {'Column Name': column_name}
+
+    # If it's numeric, check unique value count
+    if data_type in ['int', 'float', 'double']:  # Adjust this list based on your data types in Athena
+        unique_count_query = f"""
+        SELECT COUNT(DISTINCT {column_name}) 
+        FROM your_database_name.your_table_name;
+        """
+        
+        unique_count = pd.read_sql(unique_count_query, conn).iloc[0, 0]
+        
+        if unique_count <= 10:
+            column_info['Type'] = 'categorical'
+            
+            # Fetch the top 10 values
+            top_values_query = f"""
+            SELECT {column_name}, COUNT(*) as count 
+            FROM your_database_name.your_table_name 
+            GROUP BY {column_name} 
+            ORDER BY count DESC 
+            LIMIT 10;
+            """
+            
+            top_values = pd.read_sql(top_values_query, conn)
+            column_info['Top 10 Values'] = ', '.join(map(str, top_values[column_name].tolist()))
+            column_info['Min Value'] = None
+            column_info['Max Value'] = None
+        else:
+            column_info['Type'] = 'continuous'
+            
+            # Fetch min and max values
+            min_max_query = f"""
+            SELECT MIN({column_name}) as min_value, MAX({column_name}) as max_value
+            FROM your_database_name.your_table_name;
+            """
+            
+            min_max_values = pd.read_sql(min_max_query, conn).iloc[0]
+            column_info['Min Value'] = min_max_values['min_value']
+            column_info['Max Value'] = min_max_values['max_value']
+            column_info['Top 10 Values'] = None
+    
+    # If it's string or other non-numeric type
+    else:
+        column_info['Type'] = 'categorical'
+        
+        # Fetch the top 10 values
+        top_values_query = f"""
+        SELECT {column_name}, COUNT(*) as count 
+        FROM your_database_name.your_table_name 
+        GROUP BY {column_name} 
+        ORDER BY count DESC 
+        LIMIT 10;
+        """
+        
+        top_values = pd.read_sql(top_values_query, conn)
+        column_info['Top 10 Values'] = ', '.join(map(str, top_values[column_name].tolist()))
+        column_info['Min Value'] = None
+        column_info['Max Value'] = None
+        
+    column_details.append(column_info)
+
+# Convert to DataFrame for better visualization
+df_column_details = pd.DataFrame(column_details)
+
+df_column_details
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
