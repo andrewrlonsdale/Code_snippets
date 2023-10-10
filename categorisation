@@ -1,0 +1,47 @@
+import pandas as pd
+from pyathena import connect
+
+# Establishing a connection to Athena
+conn = connect(s3_staging_dir="s3://your_s3_staging_directory/",
+               region_name='your_region_name')
+
+# Fetch column names and data types
+query = """
+SELECT column_name, data_type 
+FROM information_schema.columns 
+WHERE table_schema = 'your_database_name' 
+AND table_name = 'your_table_name';
+"""
+
+column_data = pd.read_sql(query, conn)
+
+# Placeholder for column categorization
+column_types = {}
+
+# Check each column
+for index, row in column_data.iterrows():
+    column_name = row['column_name']
+    data_type = row['data_type']
+
+    # If it's numeric, check unique value count
+    if data_type in ['int', 'float', 'double']:  # Adjust this list based on your data types in Athena
+        unique_count_query = f"""
+        SELECT COUNT(DISTINCT {column_name}) 
+        FROM your_database_name.your_table_name;
+        """
+        
+        unique_count = pd.read_sql(unique_count_query, conn).iloc[0, 0]
+        
+        if unique_count <= 10:
+            column_types[column_name] = 'categorical'
+        else:
+            column_types[column_name] = 'continuous'
+    
+    # If it's string or other non-numeric type
+    else:
+        column_types[column_name] = 'categorical'
+
+# Convert to DataFrame for better visualization
+df_column_types = pd.DataFrame(list(column_types.items()), columns=['Column', 'Type'])
+
+df_column_types
