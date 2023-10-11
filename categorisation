@@ -309,6 +309,43 @@ df_column_details
 
 
 
+from tqdm.notebook import tqdm  # Use this if you're in a Jupyter environment
+from concurrent.futures import as_completed
+
+# ... [rest of the code]
+
+with ThreadPoolExecutor() as executor:
+    # Fetch min and max values for continuous columns
+    futures = [executor.submit(fetch_min_max, col) for col in continuous_columns]
+    for future in tqdm(as_completed(futures), total=len(continuous_columns), desc="Fetching min/max values"):
+        col, min_val, max_val = future.result()
+        column_details.append({
+            'Column Name': col,
+            'SQL Data Type': data_type,
+            'Unique Count': unique_counts[col],
+            'Type': 'continuous',
+            'Min Value': min_val,
+            'Max Value': max_val,
+            'Top 10 Values': '[Not applicable]'
+        })
+    
+    # Fetch top 10 values for categorical columns
+    futures = [executor.submit(fetch_top_10, col) for col in categorical_columns]
+    for future in tqdm(as_completed(futures), total=len(categorical_columns), desc="Fetching top 10 values"):
+        col, top_10_df = future.result()
+        top_10_str = ', '.join(map(str, top_10_df['value'].tolist()))
+        column_details.append({
+            'Column Name': col,
+            'SQL Data Type': data_type,
+            'Unique Count': unique_counts[col],
+            'Type': 'categorical',
+            'Min Value': '[Not applicable]',
+            'Max Value': '[Not applicable]',
+            'Top 10 Values': top_10_str
+        })
+
+
+
 
 
 
