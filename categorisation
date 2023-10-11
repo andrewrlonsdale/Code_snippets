@@ -204,6 +204,102 @@ df_column_details
 
 
 
+import pandas as pd
+from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor
+
+# Assuming cursor is already initialized and connected to Athena
+
+# Step 1: Fetch unique counts for all columns in one go
+count_queries = [f"COUNT(DISTINCT {col}) AS {col}" for col in column_data['column_name']]
+count_query = f"""
+SELECT
+    {', '.join(count_queries)}
+FROM
+    your_database_name.your_table_name;
+"""
+
+unique_counts = cursor.execute(count_query).as_pandas().iloc[0]
+
+# Lists to store columns based on their determined type
+continuous_columns = []
+categorical_columns = []
+high_cardinality_columns = []
+
+# Step 2: Determine column types
+for index, row in tqdm(column_data.iterrows(), total=column_data.shape[0], desc="Classifying columns"):
+    column_name = row['column_name']
+    data_type = row['data_type']
+    
+    unique_count = unique_counts[column_name]
+    
+    if data_type in ['int', 'float', 'double'] or 'date' in data_type:
+        if 1 < unique_count < 5:
+            categorical_columns.append(column_name)
+        elif unique_count > 500:
+            high_cardinality_columns.append(column_name)
+        else:
+            continuous_columns.append(column_name)
+    elif 'date' not in data_type and unique_count <= 500:
+        categorical_columns.append(column_name)
+    else:
+        high_cardinality_columns.append(column_name)
+
+# Function to fetch min and max for a given column
+def fetch_min_max(col):
+    query = f"""
+    SELECT MIN({col}) AS min_value, MAX({col}) AS max_value
+    FROM your_database_name.your_table_name;
+    """
+    result = cursor.execute(query).as_pandas().iloc[0]
+    return col, result['min_value'], result['max_value']
+
+# Function to fetch top 10 values for a given column
+def fetch_top_10(col):
+    query = f"""
+    SELECT {col} AS value, COUNT(*) AS count 
+    FROM your_database_name.your_table_name 
+    WHERE {col} IS NOT NULL
+    GROUP BY {col} 
+    ORDER BY count DESC 
+    LIMIT 10;
+    """
+    result = cursor.execute(query).as_pandas()
+    return col, result
+
+# Step 3: Parallel fetch min, max for continuous columns and top 10 for categorical columns
+column_details = []
+
+with ThreadPoolExecutor() as executor:
+    # Fetch min and max values for continuous columns
+    for col, min_val, max_val in tqdm(executor.map(fetch_min_max, continuous_columns), total=len(continuous_columns), desc="Fetching min/max values"):
+        column_details.append({
+            'Column Name': col,
+            'SQL Data Type': data_type,
+            'Unique Count': unique_counts[col],
+            'Type': 'continuous',
+            'Min Value': min_val,
+            'Max Value': max_val,
+            'Top 10 Values': '[Not applicable]'
+        })
+    
+    # Fetch top 10 values for categorical columns
+    for col, top_10_df in tqdm(executor.map(fetch_top_10, categorical_columns), total=len(categorical_columns), desc="Fetching top 10 values"):
+        top_10_str = ', '.join(map(str, top_10_df['value'].tolist()))
+        column_details.append({
+            'Column Name': col,
+            'SQL Data Type': data_type,
+            'Unique Count': unique_counts[col],
+            'Type': 'categorical',
+            'Min Value': '[Not applicable]',
+            'Max Value': '[Not applicable]',
+            'Top 10 Values': top_10_str
+        })
+
+# Convert to DataFrame for better visualization
+df_column_details = pd.DataFrame(column_details)
+
+df_column_details
 
 
 
