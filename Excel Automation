@@ -1,0 +1,43 @@
+Excel Automation
+
+import openpyxl
+import pandas as pd
+from datetime import datetime
+
+# Set string variables for 'Cover Page'
+value_a1 = "String 1"
+value_b1 = "String 2"
+value_c1 = "String 3"
+
+# Your DataFrame data for '2nd tab'
+data = {
+    'Column1': [1, 2, 3, 4],
+    'Column2': [5, 6, 7, 8],
+    # Add more columns if needed
+}
+df = pd.DataFrame(data)
+
+# Path to your template Excel file
+template_path = 'path_to_your_template_file.xlsx'
+
+# Load the Excel workbook
+workbook = openpyxl.load_workbook(template_path)
+
+# Modify 'Cover Page'
+cover_page = workbook['Cover Page']
+cover_page['A1'] = value_a1
+cover_page['B1'] = value_b1
+cover_page['C1'] = value_c1
+
+# Update  '2nd tab'
+data_sheet = workbook['2nd']
+for row in data_sheet.iter_rows(min_row=1, max_col=data_sheet.max_column, max_row=data_sheet.max_row):
+    for cell in row:
+        cell.value = None
+for row_index, row in enumerate(df.itertuples(index=False), start=1):
+    for col_index, value in enumerate(row, start=1):
+        data_sheet.cell(row=row_index, column=col_index, value=value)
+
+# Save the workbook with a new name
+new_file_name = 'modified_file_' + datetime.now().strftime('%Y%m%d%H%M%S') + '.xlsx'
+workbook.save(new_file_name)
