@@ -420,3 +420,44 @@ final_result = pd.DataFrame(results, columns=['Field', 'Type', 'Values'])
 
 
 
+def determine_field_type(chunk):
+    field_types = {}
+    for column in chunk.columns:
+        if chunk[column].dtype in ['int64', 'float64']:
+            field_types[column] = 'continuous'
+        else:
+            field_types[column] = 'categorical'
+    return field_types
+
+def compute_statistics(chunk, field_types):
+    statistics = {}
+    for column, field_type in field_types.items():
+        if field_type == 'continuous':
+            statistics[column] = {
+                'min': chunk[column].min(),
+                'max': chunk[column].max()
+            }
+        else:
+            top_categories = chunk[column].value_counts().head(10).index.tolist()
+            statistics[column] = {
+                'top_categories': top_categories
+            }
+    return statistics
+
+# Assume cursor is already set up
+query = "SELECT * FROM your_table"
+cursor.execute(query)
+
+chunksize = 10000  # Adjust chunk size as per your system's capacity
+while True:
+    rows = cursor.fetchmany(chunksize)
+    if not rows:
+        break
+    chunk = pd.DataFrame(rows, columns=[desc[0] for desc in cursor.description])  # Assuming column names are in the description
+    field_types = determine_field_type(chunk)
+    statistics = compute_statistics(chunk, field_types)
+    # Process statistics here or store them for later processing
+    ...
+
+# Remember to close the cursor and connection when done
+cursor.close()
