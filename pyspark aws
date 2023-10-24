@@ -1,0 +1,40 @@
+import boto3
+import pandas as pd
+from pyathena import connect
+from pyspark.sql import SparkSession
+
+# Initialize a Spark session
+spark = SparkSession.builder.appName("AthenaToSpark").getOrCreate()
+
+# Set up Athena connection
+conn = connect(s3_staging_dir='<S3-URI>',
+               region_name='<AWS-REGION>')
+
+# Load data into a Pandas DataFrame
+query = "SELECT * FROM <your-table>"
+df_pd = pd.read_sql(query, conn)
+
+# Convert the Pandas DataFrame to a Spark DataFrame
+df_spark = spark.createDataFrame(df_pd)
+
+
+from pyspark.sql.functions import expr
+
+# Exclude the 'yearmonth' column and stack the other columns
+df_stacked = df_spark.withColumn("stacked", expr("stack(" + str(len(df_spark.columns)-1) + ", " + 
+                                                  ', '.join(["'" + c + "', " + c for c in df_spark.columns if c != 'date']) + 
+                                                  ") as (Field_Name, Value)"))
+                     .select("date", "stacked.Field_Name", "stacked.Value")
+
+
+from pyspark.sql.functions import count, when, col
+
+# Perform aggregation to count nulls and zeros
+df_final = df_stacked.groupBy("date", "Field_Name") \
+                     .agg(count(when(col("Value").isNull(), 1)).alias("Null_Count"),
+                          count(when(col("Value") == 0, 1)).alias("Zero_Count"))
+
+
+# Write the final DataFrame to a new table in AWS Athena
+df_final.write.format("parquet").mode("overwrite").saveAsTable("<new-table-name>")
+
