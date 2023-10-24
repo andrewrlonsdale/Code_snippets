@@ -352,3 +352,71 @@ with ThreadPoolExecutor() as executor:
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import pandas as pd
+from pyathena import connect
+import concurrent.futures
+
+# Establish Athena connection
+conn = connect(s3_staging_dir='s3://your-path/',
+               region_name='your-region')
+
+# Define threshold for categorical vs continuous determination
+threshold = 0.05 * 2_000_000  # 5% of total rows
+
+def process_chunk(chunk):
+    result = []
+    for column in chunk.columns:
+        unique_values = chunk[column].nunique()
+        if unique_values <= threshold:
+            # Categorical Field
+            top_10_values = chunk[column].value_counts().head(10)
+            result.append((column, 'Categorical', top_10_values))
+        else:
+            # Continuous Field
+            min_val = chunk[column].min()
+            max_val = chunk[column].max()
+            result.append((column, 'Continuous', (min_val, max_val)))
+    return result
+
+# Process data in chunks
+chunksize = 10000  # Adjust this value based on your system's memory
+results = []
+for chunk in pd.read_sql('SELECT * FROM your_table', conn, chunksize=chunksize):
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future = executor.submit(process_chunk, chunk)
+        results.extend(future.result())
+
+# Convert results to a DataFrame
+final_result = pd.DataFrame(results, columns=['Field', 'Type', 'Values'])
+
+
+
+
+
+
+
+
+
