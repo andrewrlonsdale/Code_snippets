@@ -569,3 +569,77 @@ pd.DataFrame({column: pd.Series(counts) for column, counts in global_category_co
 
 
 
+import pandas as pd
+import multiprocessing
+from tqdm import tqdm
+
+def determine_field_type(chunk):
+    field_types = {}
+    for column in chunk.columns:
+        if chunk[column].dtype in ['int64', 'float64']:
+            field_types[column] = 'continuous'
+        else:
+            field_types[column] = 'categorical'
+    return field_types
+
+def compute_statistics(chunk, field_types):
+    statistics = {}
+    for column, field_type in field_types.items():
+        if field_type == 'continuous':
+            statistics[column] = {
+                'min': chunk[column].min(),
+                'max': chunk[column].max()
+            }
+        else:
+            top_categories = chunk[column].value_counts().head(10).index.tolist()
+            statistics[column] = {
+                'top_categories': top_categories
+            }
+    return statistics
+
+def process_chunk(chunk):
+    field_types = determine_field_type(chunk)
+    statistics = compute_statistics(chunk, field_types)
+    return statistics
+
+# Assume cursor is already set up
+query = "SELECT * FROM your_table"
+cursor.execute(query)
+
+chunksize = 10000  # Adjust chunk size as per your system's capacity
+
+# Initialize storage for global statistics
+global_min_max = {}
+global_category_counts = {}
+
+# Setup a Pool for parallel processing
+with multiprocessing.Pool() as pool:
+    chunks = []
+    for _ in tqdm(range(number_of_chunks)):  # Adjust range as needed
+        rows = cursor.fetchmany(chunksize)
+        if not rows:
+            break
+        chunk = pd.DataFrame(rows, columns=[desc[0] for desc in cursor.description])
+        chunks.append(chunk)
+
+    # Process chunks in parallel
+    statistics_list = pool.map(process_chunk, chunks)
+
+    # Update global statistics
+    for statistics in statistics_list:
+        for column, stats in statistics.items():
+            if 'min' in stats:  # Continuous data
+                global_min_max.setdefault(column, {'min': float('inf'), 'max': float('-inf')})
+                global_min_max[column]['min'] = min(global_min_max[column]['min'], stats['min'])
+                global_min_max[column]['max'] = max(global_min_max[column]['max'], stats['max'])
+            else:  # Categorical data
+                global_category_counts.setdefault(column, {})
+                for category in stats['top_categories']:
+                    global_category_counts[column][category] = global_category_counts[column].get(category, 0) + 1
+
+# Remember to close the cursor and connection when done
+cursor.close()
+
+# Convert global statistics to DataFrame and write to CSV
+pd.DataFrame(global_min_max).T.to_csv('/mnt/data/continuous_statistics.csv')
+pd.DataFrame({column: pd.Series(counts) for column, counts in global_category_counts.items()}).to_csv('/mnt/data/categorical_statistics.csv')
