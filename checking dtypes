@@ -82,3 +82,122 @@ for col in continuous_columns:
 
 df = pd.DataFrame(data)
 df.to_csv('/mnt/data/column_classification.csv', index=False)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import pandas as pd
+import boto3
+from tqdm import tqdm
+import time
+
+# Initialize a boto3 Athena client
+client = boto3.client('athena', region_name='your-region')
+
+# Define the database and table
+database = 'your_database'
+table = 'your_table'
+
+# Initialize a progress bar
+total_steps = 5  # Adjust this based on the number of steps in your script
+pbar = tqdm(total=total_steps, desc='Progress', unit='step')
+
+# Step 1: Get Column Data Types
+query = f"""
+SELECT column_name, data_type
+FROM information_schema.columns
+WHERE table_schema = '{database}'
+  AND table_name = '{table}';
+"""
+data_types = pd.read_sql(query, connection)  # Assuming `connection` is your DB connection
+pbar.update(1)
+
+# Step 2: Classify Date and String Columns as Categorical
+categorical_columns = data_types[data_types['data_type'].isin(['date', 'varchar', 'char'])]['column_name'].tolist()
+numerical_columns = data_types[~data_types['column_name'].isin(categorical_columns) & data_types['data_type'].isin(['int', 'decimal', 'float', 'double'])]['column_name'].tolist()
+pbar.update(1)
+
+# Step 3: Get Distinct Counts for Numerical Columns
+numerical_columns_query = ", ".join([f"COUNT(DISTINCT {col}) as {col}_count" for col in numerical_columns])
+query = f"SELECT {numerical_columns_query} FROM {database}.{table}"
+distinct_counts = pd.read_sql(query, connection)
+pbar.update(1)
+
+# Step 4: Classify Numerical Columns
+continuous_columns = []
+for col in numerical_columns:
+    count = distinct_counts[f"{col}_count"][0]
+    if count > 5:
+        continuous_columns.append(col)
+    else:
+        categorical_columns.append(col)
+pbar.update(1)
+
+# Step 5: Retrieve Top 5 Values for Categorical Columns and Min/Max for Continuous Columns
+categorical_values = {}
+for col in tqdm(categorical_columns, desc='Categorical Columns', unit='col'):
+    col, values = get_categorical_values(col)
+    categorical_values[col] = values
+
+continuous_values = {}
+for col in tqdm(continuous_columns, desc='Continuous Columns', unit='col'):
+    col, values = get_continuous_values(col)
+    continuous_values[col] = values
+pbar.update(1)
+
+# Step 6: Compile the Results and Create a CSV File
+data = []
+for col in categorical_columns:
+    data.append({
+        'column_name': col,
+        'datatype': data_types[data_types['column_name'] == col]['data_type'].values[0],
+        'category': 'Categorical',
+        'min': '[Not Applicable]',
+        'max': '[Not Applicable]',
+        'top_5': ', '.join(map(str, categorical_values.get(col, [])))
+    })
+for col in continuous_columns:
+    data.append({
+        'column_name': col,
+        'datatype': data_types[data_types['column_name'] == col]['data_type'].values[0],
+        'category': 'Continuous',
+        'min': continuous_values[col]['min'],
+        'max': continuous_values[col]['max'],
+        'top_5': '[Not Applicable]'
+    })
+
+df = pd.DataFrame(data)
+df.to_csv('/mnt/data/column_classification.csv', index=False)
+pbar.close()
+
+
+
+
+
+
+
+
+
