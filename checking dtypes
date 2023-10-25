@@ -1,0 +1,84 @@
+import pandas as pd
+import boto3
+from concurrent.futures import ThreadPoolExecutor
+
+# Initialize a boto3 Athena client
+client = boto3.client('athena', region_name='your-region')
+
+# Define the database and table
+database = 'your_database'
+table = 'your_table'
+
+# Step 1: Get Column Data Types
+query = f"""
+SELECT column_name, data_type
+FROM information_schema.columns
+WHERE table_schema = '{database}'
+  AND table_name = '{table}';
+"""
+data_types = pd.read_sql(query, connection)  # Assuming `connection` is your DB connection
+
+# Step 2: Classify Date and String Columns as Categorical
+categorical_columns = data_types[data_types['data_type'].isin(['date', 'varchar', 'char'])]['column_name'].tolist()
+
+# Numerical columns to be checked for distinct counts
+numerical_columns = data_types[~data_types['column_name'].isin(categorical_columns) & data_types['data_type'].isin(['int', 'decimal', 'float', 'double'])]['column_name'].tolist()
+
+# Step 3: Get Distinct Counts for Numerical Columns
+numerical_columns_query = ", ".join([f"COUNT(DISTINCT {col}) as {col}_count" for col in numerical_columns])
+query = f"SELECT {numerical_columns_query} FROM {database}.{table}"
+distinct_counts = pd.read_sql(query, connection)
+
+# Step 4: Classify Numerical Columns
+continuous_columns = []
+for col in numerical_columns:
+    count = distinct_counts[f"{col}_count"][0]
+    if count > 5:
+        continuous_columns.append(col)
+    else:
+        categorical_columns.append(col)
+
+# Step 5: Retrieve Top 5 Values for Categorical Columns and Min/Max for Continuous Columns
+def get_categorical_values(col):
+    query = f"""
+    SELECT {col}, COUNT(*) as count
+    FROM {database}.{table}
+    GROUP BY {col}
+    ORDER BY count DESC
+    LIMIT 5
+    """
+    result = pd.read_sql(query, connection)
+    return col, result[col].tolist()
+
+def get_continuous_values(col):
+    query = f"SELECT MIN({col}) as min, MAX({col}) as max FROM {database}.{table}"
+    result = pd.read_sql(query, connection)
+    return col, {'min': result['min'][0], 'max': result['max'][0]}
+
+with ThreadPoolExecutor() as executor:
+    categorical_values = dict(executor.map(get_categorical_values, categorical_columns))
+    continuous_values = dict(executor.map(get_continuous_values, continuous_columns))
+
+# Step 6: Compile the Results and Create a CSV File
+data = []
+for col in categorical_columns:
+    data.append({
+        'column_name': col,
+        'datatype': data_types[data_types['column_name'] == col]['data_type'].values[0],
+        'category': 'Categorical',
+        'min': '[Not Applicable]',
+        'max': '[Not Applicable]',
+        'top_5': ', '.join(map(str, categorical_values.get(col, [])))
+    })
+for col in continuous_columns:
+    data.append({
+        'column_name': col,
+        'datatype': data_types[data_types['column_name'] == col]['data_type'].values[0],
+        'category': 'Continuous',
+        'min': continuous_values[col]['min'],
+        'max': continuous_values[col]['max'],
+        'top_5': '[Not Applicable]'
+    })
+
+df = pd.DataFrame(data)
+df.to_csv('/mnt/data/column_classification.csv', index=False)
