@@ -201,3 +201,52 @@ pbar.close()
 
 
 
+import pandas as pd
+
+# Define your Athena connection
+connection = "your_athena_connection"  # Replace with your actual Athena connection
+
+# Define the database and table
+database = 'your_database'
+table = 'your_table'
+
+# Step 1: Retrieve Column Data Types
+query = f"""
+SELECT column_name, data_type
+FROM information_schema.columns
+WHERE table_schema = '{database}'
+  AND table_name = '{table}';
+"""
+data_types = pd.read_sql(query, connection)
+
+# Step 2: Classify Columns as Categorical or Continuous
+continuous_columns = data_types[data_types['data_type'].isin(['int', 'decimal', 'float', 'double', 'date', 'timestamp'])]['column_name'].tolist()
+categorical_columns = data_types[data_types['data_type'].isin(['string', 'varchar', 'char', 'text'])]['column_name'].tolist()
+
+# Function to generate SQL query for categorical columns
+def generate_categorical_query(categorical_columns, table_name):
+    sub_queries = [f"SELECT '{col}' as column_name, {col} as value FROM {table_name}" for col in categorical_columns]
+    union_query = " UNION ALL ".join(sub_queries)
+    query = f"""
+    SELECT column_name, value, COUNT(*) as count
+    FROM ({union_query}) t
+    GROUP BY column_name, value
+    ORDER BY column_name, count DESC
+    LIMIT 5;
+    """
+    return query
+
+# Function to generate SQL query for continuous columns
+def generate_continuous_query(continuous_columns, table_name):
+    min_max_select = ", ".join([f"MIN({col}) as {col}_min, MAX({col}) as {col}_max" for col in continuous_columns])
+    query = f"SELECT {min_max_select} FROM {table_name};"
+    return query
+
+# Step 3: Generate and Print SQL Queries
+categorical_query = generate_categorical_query(categorical_columns, table)
+continuous_query = generate_continuous_query(continuous_columns, table)
+
+print("SQL Query for Categorical Columns:")
+print(categorical_query)
+print("\nSQL Query for Continuous Columns:")
+print(continuous_query)
