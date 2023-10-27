@@ -23,3 +23,43 @@ def on_button_click(b):
         # run code for Option 3
 
 button.on_click(on_button_click)
+
+
+
+import openpyxl
+from ipywidgets import widgets, Layout
+from IPython.display import display
+import datetime
+
+# Create widgets for user input and output
+name_input = widgets.Text(description='Name:', layout=Layout(width='300px'))
+version_input = widgets.Text(description='Version:', layout=Layout(width='300px'))
+date_output = widgets.Output()
+button = widgets.Button(description='Save to Excel', layout=Layout(width='300px'))
+
+# Define button click event handler
+def save_to_excel(button):
+    # Get user input
+    name = name_input.value
+    version = version_input.value
+    today_date = datetime.datetime.now().strftime('%d/%m/%Y')
+    
+    # Display today's date
+    with date_output:
+        date_output.clear_output()
+        print(f"Today's Date: {today_date}")
+    
+    # Save to Excel
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.title = 'Summary'
+    sheet['A4'] = name
+    sheet['B4'] = version
+    sheet['C4'] = today_date
+    workbook.save('summary.xlsx')
+
+# Link button click event to handler
+button.on_click(save_to_excel)
+
+# Display widgets
+display(name_input, version_input, button, date_output)
