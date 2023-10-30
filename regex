@@ -1,0 +1,6 @@
+# Strip spaces and special characters
+df['Column1'] = df['Column1'].str.replace(r'[^A-Za-z0-9]', '', regex=True).str.strip()
+
+# Convert empty strings to NaN
+df['Column1'].replace('', np.nan, inplace=True)
+
