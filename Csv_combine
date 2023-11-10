@@ -11,3 +11,6 @@ combined_df = pd.concat(df_list, ignore_index=True)
 
 # Step 3: Write the Combined DataFrame to an Excel file
 combined_df.to_excel('combined_excel.xlsx', index=False)
+
+
+df['new_date'] = df['date'].astype(str).str[:4] + '_' + df['date'].astype(str).str[4:]
