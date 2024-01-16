@@ -1,0 +1,37 @@
+import pandas as pd
+
+# Provided list of column names
+columns = ['column1', 'column2', 'column3', ..., 'column20']  # Replace with your actual column names
+table_name = 'your_table_name'  # Replace with your actual table name
+
+# Generate SQL query to get data types of these columns
+data_type_query = f"""
+SELECT column_name, data_type 
+FROM information_schema.columns 
+WHERE table_name = '{table_name}' AND column_name IN ({', '.join("'" + column + "'" for column in columns)})
+"""
+
+# Assume this query is run in your SQL environment and the result is stored in 'column_data_types_df', a pandas DataFrame
+
+# Process the DataFrame to categorize columns
+numerical_columns = column_data_types_df[column_data_types_df['data_type'].isin(['int', 'float', 'decimal'])]['column_name'].tolist()
+string_columns = column_data_types_df[column_data_types_df['data_type'].isin(['varchar', 'char', 'text'])]['column_name'].tolist()
+
+# Generate SQL queries for numerical columns
+num_queries = [
+    f"SELECT '{col}' AS field_name, MIN({col}) AS min, MAX({col}) AS max FROM {table_name}"
+    for col in numerical_columns
+]
+num_query = ' UNION '.join(num_queries)
+
+# Generate SQL queries for string columns
+str_queries = [
+    f"SELECT '{col}' AS field_name, {col} AS value, COUNT(*) AS count FROM {table_name} GROUP BY {col} ORDER BY count DESC LIMIT 10"
+    for col in string_columns
+]
+str_query = ' UNION '.join(str_queries)
+
+# Combine all queries
+final_query = num_query + (' UNION ' + str_query if str_queries else '') if num_queries else str_query
+
+# The final_query can then be executed or saved as needed
