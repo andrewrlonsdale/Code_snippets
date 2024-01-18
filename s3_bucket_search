@@ -1,0 +1,28 @@
+import boto3
+
+def search_s3_file(bucket_name, search_filename):
+    # Create a session using the SageMaker notebook's IAM role
+    session = boto3.Session()
+
+    # Create an S3 client
+    s3 = session.client('s3')
+
+    # Search the specified bucket for the file
+    found_files = []
+    print(f"Searching in bucket: {bucket_name}")
+
+    # List objects in the specified bucket
+    paginator = s3.get_paginator('list_objects_v2')
+    for page in paginator.paginate(Bucket=bucket_name):
+        if "Contents" in page:
+            for obj in page['Contents']:
+                if search_filename in obj['Key']:
+                    found_files.append(f"s3://{bucket_name}/{obj['Key']}")
+
+    return found_files
+
+# Example Usage
+bucket_to_search = 'your-bucket-name'  # Replace with your bucket name
+searched_files = search_s3_file(bucket_to_search, 'your-file-name.csv')
+for file in searched_files:
+    print(file)
