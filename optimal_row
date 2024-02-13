@@ -35,3 +35,65 @@ optimal_df = pd.DataFrame(optimal_rows).drop(columns=['score'])
 # Display or save the optimal DataFrame
 print(optimal_df)
 # optimal_df.to_csv('optimized_selection.csv', index=False)
+
+
+
+
+
+
+
+
+
+
+
+
+import pandas as pd
+import numpy as np
+
+# Assuming df is your DataFrame after loading the CSV
+# df = pd.read_csv('your_file.csv')
+
+# For illustration, create a sample DataFrame with 'yearmonth' and values in the specified range
+df = pd.DataFrame({
+    'yearmonth': np.tile(np.arange(202101, 202101 + 18), 1),  # Example 'yearmonth'
+    'column1': np.random.uniform(0.75, 1.08, 18),
+    'column2': np.random.uniform(0.75, 1.08, 18),
+    'column3': np.random.uniform(0.75, 1.08, 18),
+    'column4': np.random.uniform(0.75, 1.08, 18),
+})
+
+# Extract month from 'yearmonth'
+df['month'] = df['yearmonth'].astype(str).str[-2:].astype(int)
+
+# Function to calculate score for how close row values are to 1 (100%)
+def score_row(row):
+    target = 1  # Target is now 1, representing 100%
+    return sum(abs(row[col] - target) for col in ['column1', 'column2', 'column3', 'column4'])
+
+# Selecting the optimal row for each month
+optimal_rows = []
+for month in df['month'].unique():
+    # Filter rows for the current month
+    month_df = df[df['month'] == month].copy()
+    # Calculate scores for each row
+    month_df['score'] = month_df.apply(score_row, axis=1)
+    # Append the row with the minimum score
+    optimal_rows.append(month_df.loc[month_df['score'].idxmin()])
+
+# Create a DataFrame from the selected rows
+optimal_df = pd.DataFrame(optimal_rows).drop(columns=['score'])
+
+# Display or save the optimal DataFrame
+print(optimal_df)
+# optimal_df.to_csv('optimized_selection.csv', index=False)
+
+
+
+
+
+
+
+
+
+
+
