@@ -1,0 +1,37 @@
+import pandas as pd
+import numpy as np
+
+# Sample data loading step
+# df = pd.read_csv('your_file.csv')
+
+# Sample DataFrame creation for illustration
+data = {
+    'month': np.tile(np.arange(1, 7), 3),  # Example month data, repeated for simplicity
+    'column1': np.random.uniform(72, 125, 18),
+    'column2': np.random.uniform(72, 125, 18),
+    'column3': np.random.uniform(72, 125, 18),
+    'column4': np.random.uniform(72, 125, 18),
+}
+df = pd.DataFrame(data)
+
+# Function to calculate score for how close row values are to 100%
+def score_row(row):
+    target = 100
+    return sum(abs(row[col] - target) for col in ['column1', 'column2', 'column3', 'column4'])
+
+# Selecting the optimal row for each month
+optimal_rows = []
+for month in df['month'].unique():
+    # Filter rows for the current month
+    month_df = df[df['month'] == month]
+    # Calculate scores for each row
+    month_df['score'] = month_df.apply(score_row, axis=1)
+    # Append the row with the minimum score
+    optimal_rows.append(month_df.loc[month_df['score'].idxmin()])
+
+# Create a DataFrame from the selected rows
+optimal_df = pd.DataFrame(optimal_rows).drop(columns=['score'])
+
+# Display or save the optimal DataFrame
+print(optimal_df)
+# optimal_df.to_csv('optimized_selection.csv', index=False)
