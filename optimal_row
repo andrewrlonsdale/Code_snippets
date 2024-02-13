@@ -91,7 +91,54 @@ print(optimal_df)
 
 
 
+import pandas as pd
+import numpy as np
 
+# Assuming df is your DataFrame after loading the CSV
+# df = pd.read_csv('your_file.csv')
+
+# For illustration, creating a sample DataFrame with 'yearmonth' and values in the specified range
+df = pd.DataFrame({
+    'yearmonth': np.tile(np.arange(202101, 202101 + 18), 1),  # Example 'yearmonth'
+    'column1': np.random.uniform(0.75, 1.08, 18),
+    'column2': np.random.uniform(0.75, 1.08, 18),
+    'column3': np.random.uniform(0.75, 1.08, 18),
+    'column4': np.random.uniform(0.75, 1.08, 18),
+})
+
+# Extract year from 'yearmonth'
+df['year'] = df['yearmonth'].astype(str).str[:4].astype(int)
+
+# Adjusted scoring function that penalizes values over 100% more
+def adjusted_score_row(row):
+    target = 1  # 1 representing 100%
+    penalty_factor = 1.5  # Increase this to penalize over-100% values more
+    score = 0
+    for col in ['column1', 'column2', 'column3', 'column4']:
+        diff = row[col] - target
+        # Apply heavier penalty for values over 100%
+        if diff > 0:
+            score += diff * penalty_factor
+        else:
+            score += abs(diff)
+    return score
+
+# Selecting the optimal row for each year with adjusted scoring
+optimal_rows = []
+for year in df['year'].unique():
+    # Filter rows for the current year
+    year_df = df[df['year'] == year].copy()
+    # Calculate scores for each row using the adjusted scoring function
+    year_df['score'] = year_df.apply(adjusted_score_row, axis=1)
+    # Append the row with the minimum score
+    optimal_rows.append(year_df.loc[year_df['score'].idxmin()])
+
+# Create a DataFrame from the selected rows
+optimal_df = pd.DataFrame(optimal_rows).drop(columns=['score'])
+
+# Display or save the optimal DataFrame
+print(optimal_df)
+# optimal_df.to_csv('optimized_selection.csv', index=False)
 
 
 
