@@ -1,19 +1,13 @@
-from pyathena import connect
-from pyathena.pandas_cursor import PandasCursor
+import pandas as pd
+import warnings
 
-# Setup connection
-connection = connect(
-    s3_staging_dir='s3://YOUR_S3_BUCKET/path/to/',
-    region_name='us-west-2',
-    cursor_class=PandasCursor  # Enables the `as_pandas` method
-)
+# Suppress future warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
-# Create cursor
-cursor = connection.cursor()
-
-# Define table and schema
+# Define table, schema, and full table reference
+schema_name = "your_schema_name"
 table_name = "your_table_name_here"
-schema_name = "your_schema_name"  # Adjust as necessary
+full_table_name = f"{schema_name}.{table_name}"  # Schema and table name
 
 # Fetch schema information
 schema_query = f"""
@@ -22,48 +16,32 @@ FROM information_schema.columns
 WHERE table_schema = '{schema_name}' AND table_name = '{table_name}'
 """
 df_schema = cursor.execute(schema_query).as_pandas()
-df_schema['category_type'] = None  # Add a new column for category type
+df_schema['category_type'] = None  # Initialize category type column
 
-# Update category types based on data types and unique value counts
-def update_category_types(df_schema, cursor, table_name):
-    for index, row in df_schema.iterrows():
-        col_name = row['column_name']
-        data_type = row['data_type']
-        
-        # Query to count unique values
-        unique_count_query = f"SELECT COUNT(DISTINCT {col_name}) as unique_count FROM {table_name}"
-        unique_count = cursor.execute(unique_count_query).as_pandas().iloc[0]['unique_count']
-        
-        # Determine category type based on rules
-        if data_type in ['varchar', 'string'] and unique_count > 100:
-            df_schema.at[index, 'category_type'] = 'continuous'
-        elif data_type in ['integer', 'bigint', 'date'] and unique_count < 3:
-            df_schema.at[index, 'category_type'] = 'categorical'
-        else:
-            df_schema.at[index, 'category_type'] = 'categorical' if data_type in ['varchar', 'string'] else 'continuous'
+# Construct and execute a unified unique count query
+unique_count_query = " UNION ALL ".join([
+    f"SELECT '{col}' AS column_name, COUNT(DISTINCT {col}) AS unique_count FROM {full_table_name}"
+    for col in df_schema['column_name']
+])
+unique_counts = cursor.execute(unique_count_query).as_pandas()
+unique_counts.set_index('column_name', inplace=True)
 
-update_category_types(df_schema, cursor, table_name)
-
-# Fetch required statistics for each column
-results = []
+# Update category types based on data types and unique counts
 for index, row in df_schema.iterrows():
     col_name = row['column_name']
-    category_type = row['category_type']
-    
-    if category_type == 'continuous':
-        stats_query = f"SELECT MIN({col_name}) as min_val, MAX({col_name}) as max_val FROM {table_name}"
-        stats = cursor.execute(stats_query).as_pandas().iloc[0]
-        results.append([col_name, stats['min_val'], stats['max_val'], 'Not Applicable', row['data_type'], category_type])
+    data_type = row['data_type']
+    unique_count = unique_counts.loc[col_name, 'unique_count']
+
+    # Determine category type based on rules
+    if data_type in ['varchar', 'string'] and unique_count > 100:
+        df_schema.at[index, 'category_type'] = 'continuous'
+    elif data_type in ['integer', 'bigint', 'date'] and unique_count < 3:
+        df_schema.at[index, 'category_type'] = 'categorical'
     else:
-        top_values_query = f"SELECT {col_name}, COUNT(*) as count FROM {table_name} GROUP BY {col_name} ORDER BY count DESC LIMIT 5"
-        top_values = cursor.execute(top_values_query).as_pandas()[col_name].tolist()
-        results.append([col_name, 'Not Applicable', 'Not Applicable', top_values, row['data_type'], category_type])
+        df_schema.at[index, 'category_type'] = 'categorical' if data_type in ['varchar', 'string'] else 'continuous'
 
-# Construct the final DataFrame
-final_df = pd.DataFrame(results, columns=['field_name', 'min', 'max', 'top_5', 'data_type', 'category_type'])
-final_df['min'] = final_df['min'].fillna('Not Applicable')
-final_df['max'] = final_df['max'].fillna('Not Applicable')
-final_df['top_5'] = final_df['top_5'].apply(lambda x: x if isinstance(x, list) else 'Not Applicable')
+# Export to CSV
+df_schema.to_csv('schema_category_types.csv', index=False)
 
-# Output final DataFrame
-print(final_df)
+# Optionally, print the DataFrame to verify
+print(df_schema)
