@@ -39,130 +39,25 @@ for index, row in df_schema.iterrows():
     else:
         df_schema.at[index, 'category_type'] = 'categorical' if data_type in ['varchar', 'string'] else 'continuous'
 
-# Group by data type and category for separate query execution
+# Execute separate queries for each data type and category type
 results = []
 grouped = df_schema.groupby(['data_type', 'category_type'])
 for (data_type, category_type), group in grouped:
-    if category_type == 'continuous':
-        queries = [
-            f"SELECT '{col}' AS field_name, COALESCE(MIN({col}), 'Not Applicable') AS min, COALESCE(MAX({col}), 'Not Applicable') AS max, 'Not Applicable' AS top_5 FROM {full_table_name}"
-            for col in group['column_name']
-        ]
-    else:
-        queries = [
-            f"SELECT '{col}' AS field_name, 'Not Applicable' AS min, 'Not Applicable' AS max, ARRAY_TO_STRING(ARRAY_AGG(DISTINCT {col} ORDER BY COUNT(*) DESC LIMIT 5), ', ') AS top_5 FROM {full_table_name} GROUP BY {col}"
-            for col in group['column_name']
-        ]
-
-    # Execute each group's query separately and collect results
-    query = " UNION ALL ".join(queries)
-    group_stats = cursor.execute(query).as_pandas()
-    results.append(group_stats)
-
-# Combine results into a final DataFrame
-final_df = pd.concat(results, ignore_index=True)
-
-# Export to CSV
-final_df.to_csv('final_schema_statistics.csv', index=False)
-
-# Optionally, print the DataFrame to verify
-print(final_df)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-import pandas as pd
-import warnings
-
-# Suppress future warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
-
-# Define table, schema, and full table reference
-schema_name = "your_schema_name"
-table_name = "your_table_name_here"
-full_table_name = f"{schema_name}.{table_name}"  # Schema and table name
-
-# Fetch schema information
-schema_query = f"""
-SELECT column_name, data_type
-FROM information_schema.columns
-WHERE table_schema = '{schema_name}' AND table_name = '{table_name}'
-"""
-df_schema = cursor.execute(schema_query).as_pandas()
-df_schema['category_type'] = None  # Initialize category type column
-
-# Construct and execute a unified unique count query
-unique_count_query = " UNION ALL ".join([
-    f"SELECT '{col}' AS column_name, COUNT(DISTINCT {col}) AS unique_count FROM {full_table_name}"
-    for col in df_schema['column_name']
-])
-unique_counts = cursor.execute(unique_count_query).as_pandas()
-unique_counts.set_index('column_name', inplace=True)
-
-# Update category types based on data types and unique counts
-for index, row in df_schema.iterrows():
-    col_name = row['column_name']
-    data_type = row['data_type']
-    unique_count = unique_counts.loc[col_name, 'unique_count']
-
-    if data_type in ['varchar', 'string'] and unique_count > 100:
-        df_schema.at[index, 'category_type'] = 'continuous'
-    elif data_type in ['integer', 'bigint', 'date'] and unique_count < 3:
-        df_schema.at[index, 'category_type'] = 'categorical'
-    else:
-        df_schema.at[index, 'category_type'] = 'categorical' if data_type in ['varchar', 'string'] else 'continuous'
-
-# Execute separate queries for each data type and category and combine results
-results = []
-grouped = df_schema.groupby(['data_type', 'category_type'])
-for (data_type, category_type), group in grouped:
+    queries = []
     for col_name in group['column_name']:
         if category_type == 'continuous':
-            query = f"SELECT '{col_name}' AS field_name, COALESCE(MIN({col_name}), 'Not Applicable') AS min, COALESCE(MAX({col_name}), 'Not Applicable') AS max, 'Not Applicable' AS top_5 FROM {full_table_name}"
+            if data_type in ['integer', 'bigint']:
+                queries.append(f"SELECT '{col_name}' AS field_name, COALESCE(MIN({col_name}), 0) AS min, COALESCE(MAX({col_name}), 0) AS max, 'Not Applicable' AS top_5 FROM {full_table_name}")
+            else:
+                queries.append(f"SELECT '{col_name}' AS field_name, MIN({col_name}) AS min, MAX({col_name}) AS max, 'Not Applicable' AS top_5 FROM {full_table_name}")
         else:
-            query = f"SELECT '{col_name}' AS field_name, 'Not Applicable' AS min, 'Not Applicable' AS max, ARRAY_TO_STRING(ARRAY_AGG(DISTINCT {col_name} ORDER BY COUNT(*) DESC LIMIT 5), ', ') AS top_5 FROM {full_table_name} GROUP BY {col_name}"
-
-        # Execute query and collect result
-        stat = cursor.execute(query).as_pandas()
-        results.append(stat)
+            queries.append(f"SELECT '{col_name}' AS field_name, 'Not Applicable' AS min, 'Not Applicable' AS max, ARRAY_TO_STRING(ARRAY_AGG(DISTINCT {col_name} ORDER BY COUNT(*) DESC LIMIT 5), ', ') AS top_5 FROM {full_table_name} GROUP BY {col_name}")
+    
+    # Execute combined queries for each group
+    if queries:
+        query = " UNION ALL ".join(queries)
+        group_stats = cursor.execute(query).as_pandas()
+        results.append(group_stats)
 
 # Combine results into a final DataFrame
 final_df = pd.concat(results, ignore_index=True)
