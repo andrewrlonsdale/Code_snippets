@@ -39,25 +39,25 @@ for index, row in df_schema.iterrows():
     else:
         df_schema.at[index, 'category_type'] = 'categorical' if data_type in ['varchar', 'string'] else 'continuous'
 
-# Execute separate queries for each data type and category type
+# Execute separate queries for each data type and category
 results = []
-grouped = df_schema.groupby(['data_type', 'category_type'])
-for (data_type, category_type), group in grouped:
-    queries = []
-    for col_name in group['column_name']:
-        if category_type == 'continuous':
-            if data_type in ['integer', 'bigint']:
-                queries.append(f"SELECT '{col_name}' AS field_name, COALESCE(MIN({col_name}), 0) AS min, COALESCE(MAX({col_name}), 0) AS max, 'Not Applicable' AS top_5 FROM {full_table_name}")
-            else:
-                queries.append(f"SELECT '{col_name}' AS field_name, MIN({col_name}) AS min, MAX({col_name}) AS max, 'Not Applicable' AS top_5 FROM {full_table_name}")
-        else:
-            queries.append(f"SELECT '{col_name}' AS field_name, 'Not Applicable' AS min, 'Not Applicable' AS max, ARRAY_TO_STRING(ARRAY_AGG(DISTINCT {col_name} ORDER BY COUNT(*) DESC LIMIT 5), ', ') AS top_5 FROM {full_table_name} GROUP BY {col_name}")
-    
-    # Execute combined queries for each group
-    if queries:
-        query = " UNION ALL ".join(queries)
-        group_stats = cursor.execute(query).as_pandas()
-        results.append(group_stats)
+for (data_type, category_type), group in df_schema.groupby(['data_type', 'category_type']):
+    if category_type == 'continuous':
+        if data_type in ['integer', 'bigint']:
+            for col_name in group['column_name']:
+                query = f"SELECT '{col_name}' AS field_name, COALESCE(MIN({col_name}), 0) AS min, COALESCE(MAX({col_name}), 0) AS max, 'Not Applicable' AS top_5 FROM {full_table_name}"
+                stat = cursor.execute(query).as_pandas()
+                results.append(stat)
+        else:  # Non-integer data types for continuous variables
+            for col_name in group['column_name']:
+                query = f"SELECT '{col_name}' AS field_name, MIN({col_name}) AS min, MAX({col_name}) AS max, 'Not Applicable' AS top_5 FROM {full_table_name}"
+                stat = cursor.execute(query).as_pandas()
+                results.append(stat)
+    else:  # Categorical data types
+        for col_name in group['column_name']:
+            query = f"SELECT '{col_name}' AS field_name, 'Not Applicable' AS min, 'Not Applicable' AS max, ARRAY_TO_STRING(ARRAY_AGG(DISTINCT {col_name} ORDER BY COUNT(*) DESC LIMIT 5), ', ') AS top_5 FROM {full_table_name} GROUP BY {col_name}"
+            stat = cursor.execute(query).as_pandas()
+            results.append(stat)
 
 # Combine results into a final DataFrame
 final_df = pd.concat(results, ignore_index=True)
