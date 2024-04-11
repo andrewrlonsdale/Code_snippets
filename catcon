@@ -39,29 +39,28 @@ for index, row in df_schema.iterrows():
     else:
         df_schema.at[index, 'category_type'] = 'categorical' if data_type in ['varchar', 'string'] else 'continuous'
 
-# Separate queries for continuous and categorical columns
-continuous_query_parts = []
-categorical_query_parts = []
-
-for index, row in df_schema.iterrows():
-    col_name = row['column_name']
-    if row['category_type'] == 'continuous':
-        query = f"SELECT '{col_name}' AS field_name, COALESCE(MIN({col_name}), 'Not Applicable') AS min, COALESCE(MAX({col_name}), 'Not Applicable') AS max, 'Not Applicable' AS top_5 FROM {full_table_name}"
-        continuous_query_parts.append(query)
+# Group by data type and category for separate query execution
+results = []
+grouped = df_schema.groupby(['data_type', 'category_type'])
+for (data_type, category_type), group in grouped:
+    if category_type == 'continuous':
+        queries = [
+            f"SELECT '{col}' AS field_name, COALESCE(MIN({col}), 'Not Applicable') AS min, COALESCE(MAX({col}), 'Not Applicable') AS max, 'Not Applicable' AS top_5 FROM {full_table_name}"
+            for col in group['column_name']
+        ]
     else:
-        query = f"SELECT '{col_name}' AS field_name, 'Not Applicable' AS min, 'Not Applicable' AS max, ARRAY_TO_STRING(ARRAY_AGG(DISTINCT {col_name} ORDER BY COUNT(*) DESC LIMIT 5), ', ') AS top_5 FROM {full_table_name} GROUP BY {col_name}"
-        categorical_query_parts.append(query)
+        queries = [
+            f"SELECT '{col}' AS field_name, 'Not Applicable' AS min, 'Not Applicable' AS max, ARRAY_TO_STRING(ARRAY_AGG(DISTINCT {col} ORDER BY COUNT(*) DESC LIMIT 5), ', ') AS top_5 FROM {full_table_name} GROUP BY {col}"
+            for col in group['column_name']
+        ]
 
-# Union all continuous and categorical queries
-continuous_query = " UNION ALL ".join(continuous_query_parts)
-categorical_query = " UNION ALL ".join(categorical_query_parts)
-
-# Execute queries and fetch results
-continuous_stats = cursor.execute(continuous_query).as_pandas()
-categorical_stats = cursor.execute(categorical_query).as_pandas()
+    # Execute each group's query separately and collect results
+    query = " UNION ALL ".join(queries)
+    group_stats = cursor.execute(query).as_pandas()
+    results.append(group_stats)
 
 # Combine results into a final DataFrame
-final_df = pd.concat([continuous_stats, categorical_stats], ignore_index=True)
+final_df = pd.concat(results, ignore_index=True)
 
 # Export to CSV
 final_df.to_csv('final_schema_statistics.csv', index=False)
