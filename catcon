@@ -6,7 +6,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 # Define table, schema, and full table reference
 schema_name = "your_schema_name"
 table_name = "your_table_name_here"
-full_table_name = f"{schema_name}.{table_name}"
+full_table_name = f"{schema_name}.{table_name}"  # Schema and table name
 
 # Fetch schema information
 df_schema = cursor.execute(f"""
@@ -15,51 +15,53 @@ FROM information_schema.columns
 WHERE table_schema = '{schema_name}' AND table_name = '{table_name}'
 """).as_pandas()
 
-# Prepare to collect unique count data
-unique_count_queries = []
-for col_name in df_schema['column_name']:
-    query = f"SELECT '{col_name}' AS column_name, CAST(COUNT(DISTINCT {col_name}) AS VARCHAR) AS unique_count FROM {full_table_name}"
-    unique_count_queries.append(query)
-union_query = " UNION ALL ".join(unique_count_queries)
+# Initialize dictionary to hold queries for each specific group of data types
+queries_by_datatype_group = {
+    'integer_bigint': [],
+    'date': [],
+    'varchar_string': [],
+    'double': []
+}
 
-# Execute the union query to get unique counts
-unique_counts = cursor.execute(union_query).as_pandas()
-
-# Initialize dictionary to hold queries for each data type
-queries_by_datatype = {}
-
-# Use unique counts to determine category and prepare queries based on categorization
-for index, row in unique_counts.iterrows():
+# Build unique count queries and categorize columns based on the unique counts and data types
+for index, row in df_schema.iterrows():
     col_name = row['column_name']
-    unique_count = int(row['unique_count'])  # Convert to integer for comparison
-    data_type = df_schema.loc[df_schema['column_name'] == col_name, 'data_type'].values[0]
+    data_type = row['data_type']
+    
+    # Prepare the unique count query
+    unique_count_query = f"SELECT '{col_name}' AS column_name, COUNT(DISTINCT {col_name}) AS unique_count FROM {full_table_name}"
+    unique_count = int(cursor.execute(unique_count_query).fetchone()['unique_count'])
 
-    # Determine category based on unique count and data type
-    category_type = 'continuous' if (unique_count > 20) else 'categorical'
+    # Determine category based on unique count
+    category_type = 'continuous' if unique_count > 20 else 'categorical'
 
-    # Prepare queries, ensuring type safety by casting all fields to strings for union compatibility
-    if data_type not in queries_by_datatype:
-        queries_by_datatype[data_type] = []
-
-    if category_type == 'continuous':
-        query = f"""
-        SELECT '{col_name}' AS field_name, '{data_type}' AS data_type, 'continuous' AS category_type,
-        CAST(COALESCE(MIN({col_name}), 0) AS VARCHAR) AS min, CAST(COALESCE(MAX({col_name}), 0) AS VARCHAR) AS max, 'Not Applicable' AS top_5
-        FROM {full_table_name}
-        """
-    else:
-        query = f"""
+    # Formulate the query based on data type groups
+    base_query = f"""
+    SELECT '{col_name}' AS field_name, '{data_type}' AS data_type, '{category_type}' AS category_type,
+    'Not Applicable' AS min, 'Not Applicable' AS max, 'Not Applicable' AS top_5
+    """
+    if category_type == 'categorical':
+        base_query = f"""
         SELECT '{col_name}' AS field_name, '{data_type}' AS data_type, 'categorical' AS category_type, 
         'Not Applicable' AS min, 'Not Applicable' AS max,
-        (SELECT array_join(array_agg(CAST({col_name} AS VARCHAR)), ', ') FROM (
+        (SELECT array_join(array_agg({col_name}), ', ') FROM (
             SELECT {col_name} FROM {full_table_name} GROUP BY {col_name} ORDER BY COUNT(*) DESC LIMIT 5)
         ) AS top_5
         FROM {full_table_name}
         GROUP BY '{col_name}', '{data_type}', 'categorical'
         """
-    queries_by_datatype[data_type].append(query)
 
-# Function to execute query batches
+    # Assign query to the correct data type group
+    if data_type in ['integer', 'bigint']:
+        queries_by_datatype_group['integer_bigint'].append(base_query)
+    elif data_type == 'date':
+        queries_by_datatype_group['date'].append(base_query)
+    elif data_type in ['varchar', 'string']:
+        queries_by_datatype_group['varchar_string'].append(base_query)
+    elif data_type == 'double':
+        queries_by_datatype_group['double'].append(base_query)
+
+# Function to execute grouped queries
 def execute_query_group(query_group):
     if query_group:
         full_query = " UNION ALL ".join(query_group)
@@ -73,15 +75,14 @@ def execute_query_group(query_group):
 
 # Execute and collect results from each data type group
 results = []
-for dtype, queries in queries_by_datatype.items():
-    result = execute_query_group(queries)
+for dtype_group in ['integer_bigint', 'date', 'varchar_string', 'double']:
+    result = execute_query_group(queries_by_datatype_group[dtype_group])
     if not result.empty:
         results.append(result)
 
 # Combine results into a final DataFrame
-if results:
-    final_df = pd.concat(results, ignore_index=True)
-    final_df.to_csv('final_schema_statistics.csv', index=False)
-    print(final_df)
-else:
-    print("No data collected.")
+final_df = pd.concat(results, ignore_index=True) if results else pd.DataFrame()
+
+# Export to CSV
+final_df.to_csv('final_schema_statistics.csv', index=False)
+print(final_df)
