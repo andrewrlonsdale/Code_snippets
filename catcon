@@ -83,3 +83,115 @@ if results:
     print(final_df)
 else:
     print("No data collected.")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import pandas as pd
+import warnings
+
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
+# Define table, schema, and full table reference
+schema_name = "your_schema_name"
+table_name = "your_table_name_here"
+full_table_name = f"{schema_name}.{table_name}"  # Schema and table name
+
+# Fetch schema information
+df_schema = cursor.execute(f"""
+SELECT column_name, data_type
+FROM information_schema.columns
+WHERE table_schema = '{schema_name}' AND table_name = '{table_name}'
+""").as_pandas()
+
+# Building the union of unique count queries
+unique_count_queries = []
+for col_name in df_schema['column_name']:
+    query = f"SELECT '{col_name}' AS column_name, COUNT(DISTINCT {col_name}) AS unique_count FROM {full_table_name}"
+    unique_count_queries.append(query)
+union_query = " UNION ALL ".join(unique_count_queries)
+
+# Execute the union query to get unique counts
+unique_counts = cursor.execute(union_query).as_pandas()
+
+# Initialize dictionary to hold queries for each data type
+queries_by_datatype = {}
+
+# Use unique counts to determine category and prepare queries based on categorization
+for index, row in unique_counts.iterrows():
+    col_name = row['column_name']
+    unique_count = row['unique_count']
+    data_type = df_schema.loc[df_schema['column_name'] == col_name, 'data_type'].values[0]
+
+    # Determine category based on unique count and data type
+    if (data_type in ['varchar', 'string'] and unique_count > 100) or (data_type in ['integer', 'bigint', 'float', 'double', 'numeric', 'decimal'] and unique_count > 20):
+        category_type = 'continuous'
+    else:
+        category_type = 'categorical'
+
+    # Organize queries by data type
+    if data_type not in queries_by_datatype:
+        queries_by_datatype[data_type] = []
+
+    if category_type == 'continuous':
+        query = f"""
+        SELECT '{col_name}' AS field_name, '{data_type}' AS data_type, 'continuous' AS category_type,
+        COALESCE(MIN({col_name}), 0) AS min, COALESCE(MAX({col_name}), 0) AS max, 'Not Applicable' AS top_5
+        FROM {full_table_name}
+        """
+    else:
+        query = f"""
+        SELECT '{col_name}' AS field_name, '{data_type}' AS data_type, 'categorical' AS category_type, 
+        'Not Applicable' AS min, 'Not Applicable' AS max,
+        (SELECT array_join(array_agg({col_name}), ', ') FROM (
+            SELECT {col_name} FROM {full_table_name} GROUP BY {col_name} ORDER BY COUNT(*) DESC LIMIT 5)
+        ) AS top_5
+        FROM {full_table_name}
+        GROUP BY '{col_name}', '{data_type}', 'categorical'
+        """
+    queries_by_datatype[data_type].append(query)
+
+# Function to execute query batches
+def execute_query_group(query_group):
+    if query_group:
+        full_query = " UNION ALL ".join(query_group)
+        try:
+            return cursor.execute(full_query).as_pandas()
+        except Exception as e:
+            print(f"Error executing query group: {str(e)}")
+            return pd.DataFrame()
+    else:
+        return pd.DataFrame()
+
+# Execute and collect results from each data type group
+results = []
+for dtype, queries in queries_by_datatype.items():
+    result = execute_query_group(queries)
+    if not result.empty:
+        results.append(result)
+
+# Combine results into a final DataFrame
+if results:
+    final_df = pd.concat(results, ignore_index=True)
+    final_df.to_csv('final_schema_statistics.csv', index=False)
+    print(final_df)
+else:
+    print("No data collected.")
+
