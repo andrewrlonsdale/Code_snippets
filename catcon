@@ -72,3 +72,90 @@ WITH Frequency AS (
 )
 SELECT STRING_AGG({col_name}, ', ') AS top_5
 FROM Frequency
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import pandas as pd
+import warnings
+
+# Suppress future warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
+# Define table, schema, and full table reference
+schema_name = "your_schema_name"
+table_name = "your_table_name_here"
+full_table_name = f"{schema_name}.{table_name}"  # Schema and table name
+
+# Fetch schema information
+schema_query = f"""
+SELECT column_name, data_type
+FROM information_schema.columns
+WHERE table_schema = '{schema_name}' AND table_name = '{table_name}'
+"""
+df_schema = cursor.execute(schema_query).as_pandas()
+
+queries = []
+
+for index, row in df_schema.iterrows():
+    col_name = row['column_name']
+    data_type = row['data_type']
+
+    # Assume a basic distinction for category type
+    if data_type in ['varchar', 'string']:
+        category_type = 'categorical'
+    elif data_type in ['integer', 'bigint', 'float', 'double', 'numeric']:
+        category_type = 'continuous'
+    else:
+        category_type = 'other'
+
+    if category_type == 'continuous':
+        query = f"""
+        SELECT '{col_name}' AS field_name, '{data_type}' AS data_type, '{category_type}' AS category_type, COALESCE(MIN({col_name}), 0) AS min, COALESCE(MAX({col_name}), 0) AS max, 'Not Applicable' AS top_5
+        FROM {full_table_name}
+        """
+        queries.append(query)
+    elif category_type == 'categorical':
+        top_5_query = f"""
+        (WITH Frequency AS (
+            SELECT {col_name}, COUNT(*) AS cnt
+            FROM {full_table_name}
+            GROUP BY {col_name}
+            ORDER BY cnt DESC
+            LIMIT 5
+        )
+        SELECT '{col_name}' AS field_name, '{data_type}' AS data_type, '{category_type}' AS category_type, 'Not Applicable' AS min, 'Not Applicable' AS max, array_join(array_agg({col_name}), ', ') AS top_5
+        FROM Frequency)
+        """
+        queries.append(top_5_query)
+
+# Combine all queries with UNION ALL
+final_query = " UNION ALL ".join(queries)
+try:
+    final_df = cursor.execute(final_query).as_pandas()
+    final_df.to_csv('final_schema_statistics.csv', index=False)
+    print(final_df)
+except Exception as e:
+    print(f"Error executing combined queries: {str(e)}")
