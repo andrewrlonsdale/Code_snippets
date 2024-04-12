@@ -59,3 +59,16 @@ final_df.to_csv('final_schema_statistics.csv', index=False)
 
 # Optionally, print the DataFrame to verify
 print(final_df)
+
+
+
+
+WITH Frequency AS (
+    SELECT {col_name}, COUNT(*) AS cnt
+    FROM {full_table_name}
+    GROUP BY {col_name}
+    ORDER BY cnt DESC
+    LIMIT 5
+)
+SELECT STRING_AGG({col_name}, ', ') AS top_5
+FROM Frequency
