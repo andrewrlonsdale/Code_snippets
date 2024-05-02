@@ -30,3 +30,20 @@ GROUP BY column1
 -- Including NULL in the grouping, handle if NULL should be displayed differently
 ORDER BY count(*) DESC, column1  -- this ensures that ties in count are sorted alphabetically
 LIMIT 5;
+
+
+-- Select top 5 values including NULL (treating blanks and spaces as NULL) based on frequency
+SELECT 
+    CASE 
+        WHEN column1 IS NULL OR TRIM(column1) = '' THEN NULL 
+        ELSE column1 
+    END AS normalized_column,
+    COUNT(*) AS count
+FROM my_table
+GROUP BY 
+    CASE 
+        WHEN column1 IS NULL OR TRIM(column1) = '' THEN NULL 
+        ELSE column1 
+    END
+ORDER BY count DESC, normalized_column  -- Sort by count descending, then by column value
+LIMIT 5;
