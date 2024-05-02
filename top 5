@@ -21,3 +21,12 @@ WHERE EXISTS (
     WHERE column1 IS NULL OR column1 = ''
 )
 LIMIT 1;
+
+
+
+SELECT column1, count(*) AS count
+FROM my_table
+GROUP BY column1
+-- Including NULL in the grouping, handle if NULL should be displayed differently
+ORDER BY count(*) DESC, column1  -- this ensures that ties in count are sorted alphabetically
+LIMIT 5;
