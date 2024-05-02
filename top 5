@@ -1,0 +1,23 @@
+
+-- Top 5 unique non-null values from column1
+WITH Filtered AS (
+    SELECT DISTINCT column1
+    FROM my_table
+    WHERE column1 IS NOT NULL AND column1 <> ''
+    ORDER BY column1  -- Adjust this ordering based on your requirement, e.g., numeric or alphabetic
+    LIMIT 5
+)
+
+SELECT *
+FROM Filtered
+
+UNION ALL
+
+-- Include a single NULL if it exists
+SELECT NULL AS column1
+WHERE EXISTS (
+    SELECT 1
+    FROM my_table
+    WHERE column1 IS NULL OR column1 = ''
+)
+LIMIT 1;
