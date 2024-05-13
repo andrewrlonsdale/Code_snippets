@@ -1,0 +1,28 @@
+import pandas as pd
+from pyathena import connect
+from datetime import datetime, timedelta
+
+
+# Generate list of last days of each month 
+start_date = datetime(2006, 1, 1)
+end_date = datetime(2014, 1, 1)  # One month added for boundary condition handling
+current_date = start_date
+dates = []
+
+while current_date < end_date:
+    next_month = current_date.replace(day=28) + timedelta(days=4)  # guarantees to surpass month end
+    last_day_of_month = next_month - timedelta(days=next_month.day)
+    dates.append(last_day_of_month.strftime('%Y%m%d'))
+    current_date = last_day_of_month + timedelta(days=1)
+
+# Run a query for each last day of month
+results = []
+for date in dates:
+    sql = f"SELECT * FROM your_table WHERE date_column = '{date}'"
+    df = pd.read_sql(sql, conn)
+    results.append(df)
+    # You can process each dataframe here or after collecting them all
+
+# Combine all dataframes if needed
+final_df = pd.concat(results, ignore_index=True)
+print(final_df.head())
