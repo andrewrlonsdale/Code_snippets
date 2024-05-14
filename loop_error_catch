@@ -1,0 +1,44 @@
+from pyathena import connect
+import pandas as pd
+import logging
+
+# Set up logging
+logging.basicConfig(filename='error_log.log', level=logging.ERROR)
+
+# Function to execute Athena query
+def execute_athena_query(cursor, date):
+    try:
+        # Define your query, make sure to replace 'your_table' with your actual table name
+        query = f"""
+        SELECT * 
+        FROM your_table 
+        WHERE date_column = '{date}'
+        """
+        
+        # Execute the query
+        df = cursor.execute(query).as_pandas()
+        return df
+
+    except Exception as e:
+        # Log the error with the date
+        logging.error(f"Error on date {date}: {str(e)}")
+        # Return None or some indicator of failure
+        return None
+
+# Connect to Athena
+conn = connect(s3_staging_dir='s3://your-bucket/path/to/',
+               region_name='your-region')
+
+cursor = conn.cursor()
+
+# List of dates to process
+date_list = ['2023-01-01', '2023-01-02', '2023-01-03', ...]  # Add your dates here
+
+# Loop through the dates and execute the query
+results = {}
+for date in date_list:
+    result = execute_athena_query(cursor, date)
+    if result is not None:
+        results[date] = result
+
+# Now `results` will contain only the successful queries
