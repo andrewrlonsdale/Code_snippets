@@ -1,0 +1,57 @@
+import pandas as pd
+from itertools import islice
+
+# Example datatypes DataFrame
+datatypes = pd.DataFrame({
+    'variable': ['var1', 'var2', 'var3', 'var4'],
+    'datatype': ['int', 'float', 'int', 'float']
+})
+customer_continuous = ['var1', 'var2', 'var3']
+
+# Filter the datatypes DataFrame to include only the variables in customer_continuous
+filtered_datatypes = datatypes[datatypes['variable'].isin(customer_continuous)]
+
+# Group by 'datatype' and convert to a dictionary
+variables_by_type = filtered_datatypes.groupby('datatype')['variable'].apply(list).to_dict()
+
+# Function to create a single combined query for min and max values for each data type
+def create_combined_query(variables, table_name='your_table'):
+    min_max_selects = []
+    for var in variables:
+        min_max_selects.append(f"MIN({var}) AS {var}_min, MAX({var}) AS {var}_max")
+    combined_query = f"SELECT {', '.join(min_max_selects)} FROM {table_name}"
+    return combined_query
+
+# Function to split list into chunks of n
+def chunked_iterable(iterable, size):
+    it = iter(iterable)
+    while True:
+        chunk = list(islice(it, size))
+        if not chunk:
+            break
+        yield chunk
+
+# Mock function to simulate Athena query execution and result fetching
+def execute_athena_query(query):
+    # Replace this with your actual cursor.execute(query).as_pandas() implementation
+    # Example:
+    # cursor.execute(query)
+    # result = cursor.fetchall()
+    # return pd.DataFrame(result)
+    print(f"Executing query: {query}")
+    # Simulating a result DataFrame for demonstration purposes
+    return pd.DataFrame({'min': [1], 'max': [100]})
+
+# Execute combined queries for each data type in batches of 100 variables
+results = []
+for dtype, vars in variables_by_type.items():
+    for chunk in chunked_iterable(vars, 100):
+        combined_query = create_combined_query(chunk)
+        result = execute_athena_query(combined_query)
+        results.append(result)
+
+# Combine all results into a single DataFrame
+final_result = pd.concat(results, axis=1)
+
+# Display the final result
+print(final_result)
