@@ -1,0 +1,38 @@
+import pandas as pd
+
+# Assuming 'datatypes' is a DataFrame with columns 'variable' and 'datatype'
+# Example:
+# datatypes = pd.DataFrame({
+#     'variable': ['var1', 'var2', 'var3', ...],
+#     'datatype': ['int', 'float', 'int', ...]
+# })
+
+# Create a dictionary to store variables by their data types
+variables_by_type = datatypes.groupby('datatype')['variable'].apply(list).to_dict()
+
+# Function to create a single combined query for min and max values for each data type
+def create_combined_query(variables, table_name='your_table'):
+    min_max_selects = []
+    for var in variables:
+        min_max_selects.append(f"MIN({var}) AS {var}_min, MAX({var}) AS {var}_max")
+    combined_query = f"SELECT {', '.join(min_max_selects)} FROM {table_name}"
+    return combined_query
+
+# Assuming you have a function to execute the query using Athena
+def execute_athena_query(query):
+    # Implement your Athena query execution here
+    # Example: cursor.execute(query).as_pandas()
+    pass
+
+# Execute combined queries for each data type
+results = []
+for dtype, vars in variables_by_type.items():
+    combined_query = create_combined_query(vars)
+    result = execute_athena_query(combined_query)
+    results.append(result)
+
+# Combine all results into a single DataFrame
+final_result = pd.concat(results, axis=1)
+
+# Display the final result
+print(final_result)
