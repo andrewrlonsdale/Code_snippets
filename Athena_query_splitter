@@ -89,3 +89,7 @@ rows = cur.fetchall()
 # Close the cursor and the connection
 cur.close()
 conn.close()
+
+
+
+df = pd.DataFrame(cursor.fetchall(), columns=[description[0] for description in cursor.description], keep_default_na=False)
