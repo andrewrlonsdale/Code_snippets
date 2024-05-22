@@ -1,0 +1,32 @@
+
+import pandas as pd
+
+# Read the CSV file
+df = pd.read_csv('your_file.csv')
+
+# Initialize lists to hold the transformed data
+variables = []
+min_values = []
+max_values = []
+
+# Iterate over the columns to extract variable names, min, and max values
+for col in df.columns:
+    if col.endswith('_min'):
+        variable_name = col[:-4]
+        variables.append(variable_name)
+        min_values.append(df[col].iloc[0])  # Assuming min and max values are in the first row
+    elif col.endswith('_max'):
+        max_values.append(df[col].iloc[0])
+
+# Create the transformed DataFrame
+transformed_df = pd.DataFrame({
+    'variable': variables,
+    'min': min_values,
+    'max': max_values
+})
+
+# Display the transformed DataFrame
+print(transformed_df)
+
+# Optionally, save the transformed DataFrame to a new CSV file
+transformed_df.to_csv('transformed_file.csv', index=False)
