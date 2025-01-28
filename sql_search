@@ -1,0 +1,43 @@
+import os
+import json
+import re
+
+# Define the directory containing the notebooks
+notebook_dir = "path_to_your_notebooks"
+
+# Define the table or pattern to search for
+target_table = "your_table_name"  # Replace with the table name
+query_pattern = rf".*{target_table}.*"  # Regex to match the table in the query
+
+# List to store extracted SQL queries
+found_queries = []
+
+def extract_sql_from_cell(cell_source):
+    """Extract SQL queries containing the target table from a cell."""
+    sql_queries = []
+    # Match patterns like SELECT ... FROM <target_table>
+    matches = re.findall(query_pattern, cell_source, re.IGNORECASE)
+    if matches:
+        sql_queries.append(cell_source)
+    return sql_queries
+
+# Iterate through all notebooks in the directory
+for root, _, files in os.walk(notebook_dir):
+    for file in files:
+        if file.endswith(".ipynb"):
+            notebook_path = os.path.join(root, file)
+            with open(notebook_path, "r", encoding="utf-8") as f:
+                notebook_data = json.load(f)
+                # Search through cells in the notebook
+                for cell in notebook_data.get("cells", []):
+                    if cell.get("cell_type") == "code":
+                        cell_source = "".join(cell.get("source", ""))
+                        # Extract SQL queries containing the target table
+                        queries = extract_sql_from_cell(cell_source)
+                        if queries:
+                            found_queries.extend(queries)
+
+# Print or save the found queries
+print(f"Found {len(found_queries)} queries containing the table '{target_table}':")
+for query in found_queries:
+    print(query)
