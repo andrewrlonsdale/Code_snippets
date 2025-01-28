@@ -1,24 +1,35 @@
 import os
 import json
 import re
+import pandas as pd
 
 # Define the directory containing the notebooks
 notebook_dir = "path_to_your_notebooks"
 
 # Define the table or pattern to search for
-target_table = "your_table_name"  # Replace with the table name
-query_pattern = rf".*{target_table}.*"  # Regex to match the table in the query
+query_pattern = r".*FROM.*\{database_name\}\.\{table_name\}.*"  # Regex to match the query with table and database name
 
-# List to store extracted SQL queries
+# List to store extracted SQL queries and variable names
 found_queries = []
 
-def extract_sql_from_cell(cell_source):
-    """Extract SQL queries containing the target table from a cell."""
+# Function to find variable assignment and track table name reassignments
+def extract_table_variable(cell_source, variable_mapping):
+    """Extract variable assignments that indicate the table name."""
+    table_assignments = re.findall(r"(\w+)\s*=\s*(\w+|['\"](.*?)['\"])", cell_source)
+    for var, val, _ in table_assignments:
+        if val in variable_mapping:
+            variable_mapping[var] = variable_mapping[val]  # Follow reassignments
+        else:
+            variable_mapping[var] = val.strip('"\'")
+
+# Function to extract SQL queries that match the variable-defined tables
+def extract_sql_from_cell(cell_source, table_mapping):
+    """Extract SQL queries containing the mapped tables from a cell."""
     sql_queries = []
-    # Match patterns like SELECT ... FROM <target_table>
-    matches = re.findall(query_pattern, cell_source, re.IGNORECASE)
-    if matches:
-        sql_queries.append(cell_source)
+    for var, table in table_mapping.items():
+        query_pattern = rf".*FROM.*{table}.*"
+        if re.search(query_pattern, cell_source, re.IGNORECASE):
+            sql_queries.append(cell_source)
     return sql_queries
 
 # Iterate through all notebooks in the directory
@@ -28,16 +39,29 @@ for root, _, files in os.walk(notebook_dir):
             notebook_path = os.path.join(root, file)
             with open(notebook_path, "r", encoding="utf-8") as f:
                 notebook_data = json.load(f)
-                # Search through cells in the notebook
+                variable_mapping = {}
+                # First pass: Extract table variable assignments
                 for cell in notebook_data.get("cells", []):
                     if cell.get("cell_type") == "code":
                         cell_source = "".join(cell.get("source", ""))
-                        # Extract SQL queries containing the target table
-                        queries = extract_sql_from_cell(cell_source)
+                        extract_table_variable(cell_source, variable_mapping)
+                # Second pass: Extract SQL queries containing table references
+                for cell in notebook_data.get("cells", []):
+                    if cell.get("cell_type") == "code":
+                        cell_source = "".join(cell.get("source", ""))
+                        queries = extract_sql_from_cell(cell_source, variable_mapping)
                         if queries:
-                            found_queries.extend(queries)
+                            found_queries.append({"notebook": file, "query": queries, "table_mapping": variable_mapping})
 
-# Print or save the found queries
-print(f"Found {len(found_queries)} queries containing the table '{target_table}':")
-for query in found_queries:
-    print(query)
+# Convert the found queries into a DataFrame and save to Excel
+if found_queries:
+    df = pd.DataFrame([{
+        "notebook": q["notebook"],
+        "query": query,
+        "table_mapping": q["table_mapping"]
+    } for q in found_queries for query in q["query"]])
+    output_excel_path = "extracted_queries_with_tables.xlsx"
+    df.to_excel(output_excel_path, index=False)
+    print(f"Extracted queries with table mappings and filenames saved to {output_excel_path}")
+else:
+    print("No queries found containing the specified tables.")
