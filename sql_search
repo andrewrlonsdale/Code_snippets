@@ -88,4 +88,67 @@ def extract_sql_statements_in_cell(cell_source):
             r'(?:[frbuFRBU]*\'[^\']*\')'
         r')'
         # optional .format(...) call
-        r'(?:\.format\s*\([^)]*\))
+        r'(?:\.format\s*\([^)]*\))?'
+        r'\s*\)', 
+        re.DOTALL
+    )
+
+    for match in func_pattern.finditer(cell_source):
+        raw_sql = match.group('query_str')
+        clean_sql = strip_quotes(raw_sql)
+
+        # Optionally check if it has a SELECT (otherwise skip)
+        if 'SELECT' in clean_sql.upper():
+            queries.append(clean_sql)
+
+    return queries
+
+
+# --------------------------------------------------------------------
+# MAIN LOOP
+# --------------------------------------------------------------------
+for root, _, files in os.walk(notebook_dir):
+    for file in files:
+        if file.endswith(".ipynb"):
+            notebook_path = os.path.join(root, file)
+            with open(notebook_path, "r", encoding="utf-8") as f:
+                try:
+                    notebook_data = json.load(f)
+                except json.JSONDecodeError:
+                    # Not a valid JSON file
+                    continue
+
+                for cell in notebook_data.get("cells", []):
+                    if cell.get("cell_type") == "code":
+                        cell_source = "".join(cell.get("source", ""))
+
+                        statements = extract_sql_statements_in_cell(cell_source)
+                        for stmt in statements:
+                            extract_variables_from_query(stmt)
+                            table_match = re.search(r"FROM\s+([a-zA-Z_][a-zA-Z0-9_\.]*)", stmt, re.IGNORECASE)
+                            if table_match:
+                                table_name = table_match.group(1)
+                            else:
+                                table_name = "Unknown"
+
+                            found_queries.append({
+                                "notebook": file,
+                                "table": table_name,
+                                "query": stmt
+                            })
+
+# --------------------------------------------------------------------
+# SAVE RESULTS
+# --------------------------------------------------------------------
+if found_queries:
+    df_queries = pd.DataFrame(found_queries, columns=["notebook", "table", "query"])
+    df_frequencies = pd.DataFrame(variable_frequencies.items(), columns=["variable", "count"])
+
+    output_excel_path = "extracted_sql_queries.xlsx"
+    with pd.ExcelWriter(output_excel_path, engine="openpyxl") as writer:
+        df_queries.to_excel(writer, sheet_name="SQL Queries", index=False)
+        df_frequencies.to_excel(writer, sheet_name="Variable Frequencies", index=False)
+
+    print(f"Extracted SQL queries and variable frequencies saved to {output_excel_path}")
+else:
+    print("No SQL queries found in the notebooks.")
