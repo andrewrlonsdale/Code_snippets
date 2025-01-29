@@ -219,3 +219,89 @@ with pd.ExcelWriter(output_excel_path, engine="openpyxl") as writer:
     df_column_freq.to_excel(writer, sheet_name="Column Frequencies", index=False)
 
 print(f"Extracted SQL queries and frequencies saved to {output_excel_path}")
+
+
+
+
+
+
+
+
+
+
+
+
+import pandas as pd
+import re
+from collections import Counter
+
+# --------------------------------------------------------------------
+# 1. Load the "SQL Queries" data
+# --------------------------------------------------------------------
+input_excel_path = "extracted_sql_queries.xlsx"
+df_queries = pd.read_excel(input_excel_path, sheet_name="SQL Queries")
+
+# --------------------------------------------------------------------
+# 2. Filter rows where table == ""
+# --------------------------------------------------------------------
+df_dod = df_queries[df_queries["table"] == "dod"]
+
+# --------------------------------------------------------------------
+# 3. Function to parse variables/columns from a SELECT statement
+# --------------------------------------------------------------------
+def parse_columns_from_select(sql_text):
+    """
+    Looks for the text between SELECT and FROM in a simple SQL statement,
+    then splits on commas to get individual column names.
+    Skips if it sees '*'.
+    """
+    match = re.search(r'(?i)SELECT\s+(.*?)\s+FROM\s+', sql_text)
+    if not match:
+        return []
+    
+    cols_str = match.group(1).strip()
+    # If there's an asterisk, we skip, because we can't know the columns
+    if "*" in cols_str:
+        return []
+    
+    # Split by commas and strip each column name
+    cols = [col.strip() for col in cols_str.split(",") if col.strip()]
+    return cols
+
+# --------------------------------------------------------------------
+# 4. Aggregate variable frequencies for table "dod"
+# --------------------------------------------------------------------
+variable_counter = Counter()
+
+for query_text in df_dod["query"]:
+    columns = parse_columns_from_select(query_text)
+    for col in columns:
+        variable_counter[col] += 1
+
+# --------------------------------------------------------------------
+# 5. Convert the frequencies to a DataFrame
+# --------------------------------------------------------------------
+df_variables = pd.DataFrame(
+    [(var, cnt) for var, cnt in variable_counter.items()],
+    columns=["variable", "frequency"]
+)
+
+# --------------------------------------------------------------------
+# 6. Save to a separate Excel file (or CSV) for "dod" variables
+# --------------------------------------------------------------------
+output_excel_path = "dod_variables.xlsx"
+
+with pd.ExcelWriter(output_excel_path, engine="openpyxl") as writer:
+    # 6.1 Write the filtered queries for "dod" to a sheet
+    df_dod.to_excel(writer, sheet_name="dod_queries", index=False)
+    
+    # 6.2 Write the variable frequency to another sheet
+    df_variables.to_excel(writer, sheet_name="dod_variable_frequency", index=False)
+
+print(f"Processed 'dod' queries saved to {output_excel_path}")
+
+
+
+
+
+
