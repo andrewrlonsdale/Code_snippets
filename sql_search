@@ -12,20 +12,57 @@ notebook_dir = "path_to_your_notebooks"
 found_queries = []
 variable_frequencies = Counter()
 
-# Function to extract SQL queries from a notebook cell
-def extract_sql_from_cell(cell_source):
-    """Extract SQL queries from a cell."""
+# --------------------------------------------------------------------
+# 1. Utility Functions
+# --------------------------------------------------------------------
+
+def strip_quotes(s: str) -> str:
+    """
+    Safely remove matching quotes (single, double, triple) from a string.
+    """
+    # Trim leading/trailing whitespace just to be safe
+    s = s.strip()
+
+    # Patterns of quotes to test
+    quotes = ['"""', "'''", '"', "'"]
+    
+    for qt in quotes:
+        if s.startswith(qt) and s.endswith(qt):
+            return s[len(qt):-len(qt)].strip()
+    return s.strip("\"'")
+
+def extract_variables_from_query(query):
+    """
+    Extract variables like table names, column names, or placeholders.
+    For now, we treat 'FROM <table>' as an occurrence of a table/variable.
+    """
+    tables = re.findall(r"FROM\s+([a-zA-Z_][a-zA-Z0-9_\.]*)", query, re.IGNORECASE)
+    for table in tables:
+        variable_frequencies[table] += 1
+
+# --------------------------------------------------------------------
+# 2. SQL Extraction by Looking for "SELECT ...;" in Raw Code
+#    (Your original approach)
+# --------------------------------------------------------------------
+
+def extract_sql_from_raw_lines(cell_source):
+    """
+    Parse the cell line-by-line to find any raw SQL that starts with SELECT
+    and ends when a semicolon (;) is found.
+    """
     queries = []
     lines = cell_source.split("\n")
     sql_query = []
     inside_query = False
     
     for line in lines:
+        # Look for the beginning of a SQL statement
         if "SELECT" in line.upper():
             inside_query = True
         if inside_query:
             sql_query.append(line)
-        if ";" in line:
+        # End the query if we find a semicolon
+        if ";" in line and inside_query:
             inside_query = False
             query_text = " ".join(sql_query).strip()
             queries.append(query_text)
@@ -34,14 +71,57 @@ def extract_sql_from_cell(cell_source):
     
     return queries
 
-# Function to extract table names from SQL queries
-def extract_variables_from_query(query):
-    """Extract variables like table names, column names, or placeholders."""
-    tables = re.findall(r"FROM\s+([a-zA-Z_][a-zA-Z0-9_\.]*)", query, re.IGNORECASE)
-    for table in tables:
-        variable_frequencies[table] += 1
+# --------------------------------------------------------------------
+# 3. SQL Extraction via Known Function Calls 
+#    (pandas, awswrangler, spark)
+# --------------------------------------------------------------------
 
-# Iterate through all notebooks in the directory
+def extract_sql_from_function_calls(cell_source):
+    """
+    Use a regex to find SQL statements inside calls to:
+      - pd.read_sql_query(...)
+      - pandas.read_sql_query(...)
+      - wr.athena.read_sql_query(...)
+      - spark.sql(...)
+    This handles single- or triple-quoted strings (including multiline).
+    """
+
+    # Regex explanation:
+    # - We look for one of the function calls (pd|pandas|wr\.athena|spark)\.(read_sql_query|sql)
+    # - Then we have an opening parenthesis '\('.
+    # - After that, we capture (in group 'query_str') either a triple-quoted string
+    #   or a normal single/double quoted string, possibly multiline (DOTALL).
+    #
+    # This will capture the text *including* the quotes. We will strip them after.
+    pattern = re.compile(
+        r'(?:pd|pandas|wr\.athena|spark)\.'
+        r'(?:read_sql_query|sql)\(\s*'
+        r'(?P<query_str>'
+        r'(?:[ruRU]?(?:"""[^"]*?"""|\'\'\'[^\']*?\'\'\'))'  # triple-quoted strings
+        r'|(?:[ruRU]?(?:"[^"]*"|\'[^\']*\'))'               # single/double-quoted
+        r')',
+        re.DOTALL
+    )
+
+    queries = []
+    
+    for match in pattern.finditer(cell_source):
+        raw_sql = match.group("query_str")
+        # Remove the surrounding quotes
+        sql_text = strip_quotes(raw_sql)
+        
+        # Optionally, you can check if it *really* has a SELECT,
+        # or just treat everything as a query. Example check:
+        if "SELECT" in sql_text.upper():
+            queries.append(sql_text)
+            extract_variables_from_query(sql_text)
+
+    return queries
+
+# --------------------------------------------------------------------
+# 4. Main loop to walk through notebooks
+# --------------------------------------------------------------------
+
 for root, _, files in os.walk(notebook_dir):
     for file in files:
         if file.endswith(".ipynb"):
@@ -51,14 +131,35 @@ for root, _, files in os.walk(notebook_dir):
                 # Search through cells in the notebook
                 for cell in notebook_data.get("cells", []):
                     if cell.get("cell_type") == "code":
+                        # Join source lines as a single string
                         cell_source = "".join(cell.get("source", ""))
-                        queries = extract_sql_from_cell(cell_source)
-                        for query in queries:
+
+                        # 1) Extract queries from raw code blocks
+                        raw_queries = extract_sql_from_raw_lines(cell_source)
+                        for query in raw_queries:
                             table_name = re.search(r"FROM\s+([a-zA-Z_][a-zA-Z0-9_\.]*)", query, re.IGNORECASE)
                             table_name = table_name.group(1) if table_name else "Unknown"
-                            found_queries.append({"notebook": file, "table": table_name, "query": query})
+                            found_queries.append({
+                                "notebook": file,
+                                "table": table_name,
+                                "query": query
+                            })
+                        
+                        # 2) Extract queries from function calls (pandas, awswrangler, spark)
+                        func_queries = extract_sql_from_function_calls(cell_source)
+                        for query in func_queries:
+                            table_name = re.search(r"FROM\s+([a-zA-Z_][a-zA-Z0-9_\.]*)", query, re.IGNORECASE)
+                            table_name = table_name.group(1) if table_name else "Unknown"
+                            found_queries.append({
+                                "notebook": file,
+                                "table": table_name,
+                                "query": query
+                            })
 
-# Convert the found queries into a DataFrame and save to an Excel file with separate tabs
+# --------------------------------------------------------------------
+# 5. Save results to Excel
+# --------------------------------------------------------------------
+
 if found_queries:
     output_excel_path = "extracted_sql_queries.xlsx"
     with pd.ExcelWriter(output_excel_path, engine="openpyxl") as writer:
