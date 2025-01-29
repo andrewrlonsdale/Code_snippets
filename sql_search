@@ -5,166 +5,87 @@ import re
 from collections import Counter
 from openpyxl import load_workbook
 
-# --------------------------------------------------------------------
-# 1. Configuration: Where are your notebooks?
-# --------------------------------------------------------------------
 notebook_dir = "path_to_your_notebooks"
 
-# Lists/counters for output
 found_queries = []
 variable_frequencies = Counter()
 
-# --------------------------------------------------------------------
-# 2. Helper Functions
-# --------------------------------------------------------------------
 
 def extract_variables_from_query(query):
-    """
-    Extract variables like table names, column names, or placeholders.
-    For now, we treat 'FROM <table>' as an occurrence of a table/variable.
-    """
+    """Extract table names from 'FROM <table>' usage."""
     tables = re.findall(r"FROM\s+([a-zA-Z_][a-zA-Z0-9_\.]*)", query, re.IGNORECASE)
     for table in tables:
         variable_frequencies[table] += 1
 
+
 def strip_quotes(s):
     """
-    Remove surrounding quotes (single, double, triple) if present.
+    Remove surrounding triple or single/double quotes if present.
+    Also trims leading f/r/b/u if you are using f-strings or raw strings.
     """
     s = s.strip()
+    
+    # Remove optional prefix like f, r, fr, rf, etc.
+    # e.g. f"""some text""", r'some text'
+    s = re.sub(r'^[frbuFRBU]+', '', s)
+
     # Check triple quotes first
     triple_quotes = ['"""', "'''"]
     for tq in triple_quotes:
         if s.startswith(tq) and s.endswith(tq):
             return s[len(tq):-len(tq)].strip()
-    # Fallback to single or double
-    if (s.startswith("'") and s.endswith("'")) or (s.startswith('"') and s.endswith('"')):
-        return s[1:-1].strip()
-    return s
 
-# --------------------------------------------------------------------
-# 3. Extract SQL from a notebook cell
-# --------------------------------------------------------------------
+    # Fall back to single/double quotes
+    if (s.startswith('"') and s.endswith('"')) or (s.startswith("'") and s.endswith("'")):
+        return s[1:-1].strip()
+
+    return s  # If not wrapped in quotes, just return
+
 
 def extract_sql_statements_in_cell(cell_source):
     """
-    1) Captures raw SQL statements starting with SELECT until ; or end of string.
-    2) Captures SQL statements inside known function calls, e.g.:
-       pd.read_sql_query("SELECT ..."),
-       spark.sql("SELECT ..."),
-       wr.athena.read_sql_query("SELECT ...").
-
-    Returns a list of SQL strings found.
+    1) Extract 'SELECT ...' lines from raw code (ends with ; or cell boundary).
+    2) Extract queries from calls like:
+       pd.read_sql_query("..."), spark.sql("""...""".format(...)), etc.
+       allowing optional .format(...) at the end of the string.
     """
 
     queries = []
 
     # ----------------------------------------------------------------
-    # 3.1 Extract raw SQL that starts with SELECT up to semicolon or end
+    # 1) RAW SQL: "SELECT ... up to ; or end-of-string"
     # ----------------------------------------------------------------
-    # Explanation:
-    #  - (?i)  => case-insensitive
-    #  - SELECT\b => the word SELECT
-    #  - (.*?) => lazily capture everything until the next part of the pattern
-    #  - (?=(;|$)) => look ahead for either a semicolon or the end of string
     raw_sql_pattern = re.compile(
-        r'(?i)SELECT\b(.*?)(?=(;|$))',
+        r'(?i)SELECT\b(.*?)(?=(;|$))',  # case-insensitive
         re.DOTALL
     )
-
-    # We keep the 'SELECT' + the group(1)
     for match in raw_sql_pattern.finditer(cell_source):
         sql_text = "SELECT" + match.group(1)
-        # If user has an inline semicolon, remove it
         sql_text = sql_text.rstrip(" ;\t\r\n")
         if "SELECT" in sql_text.upper():
             queries.append(sql_text)
 
     # ----------------------------------------------------------------
-    # 3.2 Extract SQL from function calls:
-    #     pd.read_sql_query(...) or spark.sql(...) or wr.athena.read_sql_query(...)
+    # 2) FUNCTION CALLS: e.g. pd.read_sql_query("SELECT ...".format(...))
+    #    or spark.sql("""SELECT ...""")
     # ----------------------------------------------------------------
-    # We'll look for calls like:
-    #    pd.read_sql_query("<SQL>"),  # single line
-    #    spark.sql(\"\"\"SELECT...\") # triple quotes
-    # The capturing group 'query_str' should hold the entire string literal
+    # We capture the string literal in group 'query_str', ignoring the optional .format(...) 
+    # that may appear right after the quoted string. Example:
+    #   spark.sql("""SELECT * FROM table WHERE x = {}""".format(x))
+    #   pd.read_sql_query("SELECT ...".format(...))
     func_pattern = re.compile(
-        r'(?:pd|pandas|wr\.athena|spark)\.'
-        r'(?:read_sql_query|sql)\(\s*'
-        # The group can be single/double quoted or triple-quoted
-        r'(?P<query_str>'
-        r'(?:"""[\s\S]*?"""|\'\'\'[\s\S]*?\'\'\')'
-        r'|'
-        r'(?:"[^"]*"|\'[^\']*\')'
+        r'(?:pd|pandas|wr\.athena|spark)\.'       # library name
+        r'(?:read_sql_query|sql)\(\s*'             # function call
+        r'(?P<query_str>'                          # CAPTURE group
+            # triple-quoted strings (with optional f/r prefixes)
+            r'(?:[frbuFRBU]*"""[\s\S]*?""")'
+            r'|'
+            r'(?:[frbuFRBU]*\'\'\'[\s\S]*?\'\'\')'
+            r'|'
+            # single/double-quoted strings
+            r'(?:[frbuFRBU]*"[^"]*")'
+            r'|'
+            r'(?:[frbuFRBU]*\'[^\']*\')'
         r')'
-    )
-
-    for match in func_pattern.finditer(cell_source):
-        raw_sql = match.group('query_str')
-        # Strip surrounding quotes
-        clean_sql = strip_quotes(raw_sql)
-
-        # Optional: Check if it really looks like a SELECT statement
-        if 'SELECT' in clean_sql.upper():
-            queries.append(clean_sql)
-
-    return queries
-
-# --------------------------------------------------------------------
-# 4. Main Loop Over Notebooks
-# --------------------------------------------------------------------
-
-for root, _, files in os.walk(notebook_dir):
-    for file in files:
-        if file.endswith(".ipynb"):
-            notebook_path = os.path.join(root, file)
-            with open(notebook_path, "r", encoding="utf-8") as f:
-                try:
-                    notebook_data = json.load(f)
-                except json.JSONDecodeError:
-                    # Not a valid JSON notebook; skip
-                    continue
-
-                for cell in notebook_data.get("cells", []):
-                    if cell.get("cell_type") == "code":
-                        cell_source = "".join(cell.get("source", ""))
-
-                        # 1) Extract all possible SQL statements
-                        statements = extract_sql_statements_in_cell(cell_source)
-
-                        # 2) Append them to found_queries with the first matched table
-                        #    or "Unknown" if not found
-                        for stmt in statements:
-                            extract_variables_from_query(stmt)
-                            table_match = re.search(
-                                r"FROM\s+([a-zA-Z_][a-zA-Z0-9_\.]*)",
-                                stmt,
-                                re.IGNORECASE
-                            )
-                            if table_match:
-                                table_name = table_match.group(1)
-                            else:
-                                table_name = "Unknown"
-
-                            found_queries.append({
-                                "notebook": file,
-                                "table": table_name,
-                                "query": stmt
-                            })
-
-# --------------------------------------------------------------------
-# 5. Save Results to Excel
-# --------------------------------------------------------------------
-
-if found_queries:
-    df_queries = pd.DataFrame(found_queries, columns=["notebook", "table", "query"])
-    df_frequencies = pd.DataFrame(variable_frequencies.items(), columns=["variable", "count"])
-
-    output_excel_path = "extracted_sql_queries.xlsx"
-    with pd.ExcelWriter(output_excel_path, engine="openpyxl") as writer:
-        df_queries.to_excel(writer, sheet_name="SQL Queries", index=False)
-        df_frequencies.to_excel(writer, sheet_name="Variable Frequencies", index=False)
-
-    print(f"Extracted SQL queries and variable frequencies saved to {output_excel_path}")
-else:
-    print("No SQL queries found in the notebooks.")
+        # optional .format(...) call
+        r'(?:\.format\s*\([^)]*\))
