@@ -1,0 +1,24 @@
+import pandas as pd
+
+def convert_csv_to_parquet(csv_file, parquet_file):
+    # Read the CSV file
+    df_csv = pd.read_csv(csv_file)
+
+    # Convert and save as Parquet
+    df_csv.to_parquet(parquet_file, engine="pyarrow", index=False)
+    print(f"CSV converted to Parquet: {parquet_file}")
+
+    # Read the Parquet file back
+    df_parquet = pd.read_parquet(parquet_file, engine="pyarrow")
+
+    # Compare the two DataFrames
+    if df_csv.equals(df_parquet):
+        print("Verification successful: The CSV and Parquet files are identical!")
+    else:
+        print("Verification failed: The files are different!")
+
+# Example usage
+csv_file = "input.csv"  # Change to your CSV file path
+parquet_file = "output.parquet"  # Change to your desired Parquet file path
+
+convert_csv_to_parquet(csv_file, parquet_file)
