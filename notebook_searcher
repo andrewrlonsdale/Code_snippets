@@ -1,0 +1,40 @@
+import os
+import json
+
+# Define the table name to search for
+table_name = "your_table_name_here"
+
+# Set the root directory to search for notebooks (adjust as needed)
+root_dir = "."
+
+# Walk through all files and subdirectories starting from root_dir
+for dirpath, dirnames, filenames in os.walk(root_dir):
+    for filename in filenames:
+        # Process only Jupyter Notebook files
+        if filename.endswith(".ipynb"):
+            notebook_path = os.path.join(dirpath, filename)
+            try:
+                # Open and load the notebook JSON
+                with open(notebook_path, 'r', encoding='utf-8') as nb_file:
+                    notebook = json.load(nb_file)
+            except Exception as e:
+                print(f"Error reading {notebook_path}: {e}")
+                continue
+
+            # Search for the table name in each cell
+            found_in_notebook = False
+            for cell in notebook.get("cells", []):
+                # Optionally, you can restrict the search to 'code' cells only.
+                # Here we check both 'code' and 'markdown' cells.
+                if cell.get("cell_type") in ["code", "markdown"]:
+                    # Combine the cell source lines into one string
+                    cell_source = "".join(cell.get("source", []))
+                    if table_name in cell_source:
+                        print(f"Found '{table_name}' in {notebook_path}")
+                        found_in_notebook = True
+                        # If you only need one hit per notebook, you can break here:
+                        break
+
+            # Uncomment the following lines if you want feedback when the table name is not found in a notebook.
+            # if not found_in_notebook:
+            #     print(f"'{table_name}' not found in {notebook_path}")
