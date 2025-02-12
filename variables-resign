@@ -1,4 +1,104 @@
-def visualize_trace_and_save_final(trace_steps, output_path="variable_trace_flowchart.png"):
+import json
+import re
+import matplotlib.pyplot as plt
+import networkx as nx
+import shutil
+from collections import defaultdict
+
+# Step 1: Extract Code from Jupyter Notebook
+def extract_code_from_notebook(notebook_path):
+    """Extracts code cells from a Jupyter notebook"""
+    with open(notebook_path, "r", encoding="utf-8") as f:
+        notebook = json.load(f)
+    
+    code_cells = [
+        cell["source"] for cell in notebook.get("cells", []) if cell["cell_type"] == "code"
+    ]
+    return "\n".join(["".join(cell) for cell in code_cells])
+
+# Step 2: Parse Assignments
+def parse_assignments(source_code):
+    """
+    Parses variable assignments and dependencies in the given code.
+    
+    Returns:
+    - assignment_map: { var_name -> [list of its assignments] }
+    - dependencies: { var_name -> [list of vars used to create it] }
+    """
+    assignment_map = defaultdict(list)
+    dependencies = defaultdict(list)
+
+    assignment_pattern = re.compile(r"(\w+)\s*=\s*(.+)")
+    merge_pattern = re.compile(r"(\w+)\.merge\((\w+)")
+    sql_pattern = re.compile(r"(?:pd|spark)\.read_sql\(['\"](.+?)['\"]")
+    dataframe_read_pattern = re.compile(r"(?:pd|spark)\.read_(\w+)\((.+?)\)")
+
+    lines = source_code.split("\n")
+
+    for line in lines:
+        match = assignment_pattern.match(line)
+        if match:
+            var_name, expression = match.groups()
+            assignment_map[var_name].append(expression.strip())
+
+            # Track dependencies
+            var_refs = re.findall(r"(\b\w+\b)", expression)  # Find variable-like references
+            dependencies[var_name].extend(var for var in var_refs if var in assignment_map)
+
+            # Check for merge operations
+            merge_match = merge_pattern.search(expression)
+            if merge_match:
+                left_df, right_df = merge_match.groups()
+                dependencies[var_name].extend([left_df, right_df])
+
+            # Detect SQL queries
+            sql_match = sql_pattern.search(expression)
+            if sql_match:
+                assignment_map[var_name].append(f"SQL Query: {sql_match.group(1)}")
+
+            # Detect DataFrame file reads
+            df_read_match = dataframe_read_pattern.search(expression)
+            if df_read_match:
+                read_type, source = df_read_match.groups()
+                assignment_map[var_name].append(f"File Read ({read_type}): {source}")
+
+    return assignment_map, dependencies
+
+# Step 3: Trace Variable Path
+def trace_variable_path(assignment_map, dependencies, target_var):
+    """
+    Traces the full path of how a target variable was created, step by step.
+    
+    Returns:
+    - List of tracing steps from the original source(s) to the final variable.
+    """
+    trace_steps = []
+    seen_vars = set()
+    stack = [(target_var, 0)]  # Stack stores (variable, indentation level)
+
+    while stack:
+        current_var, level = stack.pop()
+        if current_var in seen_vars:
+            continue  # Prevent infinite loops
+        seen_vars.add(current_var)
+
+        if current_var in assignment_map:
+            last_assignment = assignment_map[current_var][-1]
+            trace_steps.append("  " * level + f"{current_var} = {last_assignment}")
+
+            # If SQL or file read, it's a source
+            if "SQL Query:" in last_assignment or "File Read" in last_assignment:
+                continue  # Stop tracing this branch further
+
+            # Add dependencies (e.g., in case of merges or chained transformations)
+            if current_var in dependencies:
+                for dep in dependencies[current_var]:
+                    stack.append((dep, level + 1))
+
+    return trace_steps[::-1]  # Reverse order to show origin first
+
+# Step 4: Visualize & Save the Flowchart with Better Spacing
+def visualize_trace_and_save(trace_steps, output_path="variable_trace_flowchart.png"):
     """
     Visualizes the traced variable dependencies as a spaced-out flowchart and saves the image.
 
@@ -37,7 +137,7 @@ def visualize_trace_and_save_final(trace_steps, output_path="variable_trace_flow
 
             prev_node = var
 
-    # Adjust spacing with a force-directed layout (Kamada-Kawai for better readability)
+    # Adjust spacing with a force-directed layout
     plt.figure(figsize=(16, 10))
     pos = nx.kamada_kawai_layout(G)  # Optimized for spacing
 
@@ -49,7 +149,8 @@ def visualize_trace_and_save_final(trace_steps, output_path="variable_trace_flow
 
     # Draw node labels with better spacing
     for node, (x, y) in pos.items():
-        plt.text(x, y + 0.05, node_labels[node], fontsize=9, ha="center", va="center", bbox=dict(facecolor="white", alpha=0.6, edgecolor="black"))
+        plt.text(x, y + 0.05, node_labels[node], fontsize=9, ha="center", va="center",
+                 bbox=dict(facecolor="white", alpha=0.6, edgecolor="black"))
 
     plt.title("Variable Trace Flowchart", fontsize=14)
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
@@ -57,12 +158,40 @@ def visualize_trace_and_save_final(trace_steps, output_path="variable_trace_flow
 
     return output_path
 
-# Generate the visualization and save it
-output_file = "variable_trace_flowchart.png"
-output_path = visualize_trace_and_save_final(trace_steps_example, output_file)
+# Step 5: Main Function to Run Everything & Provide Download Link
+def trace_and_visualize_variable(notebook_path, variable_to_trace):
+    """
+    Extracts, parses, traces, and visualizes the full history of a variable.
+    
+    Args:
+    - notebook_path (str): Path to the Jupyter notebook.
+    - variable_to_trace (str): The variable to trace back.
+    """
+    # Extract and parse notebook code
+    source_code = extract_code_from_notebook(notebook_path)
+    assignment_map, dependencies = parse_assignments(source_code)
 
-# Provide download link
-import shutil
-download_path = f"/mnt/data/{output_file}"
-shutil.move(output_file, download_path)
-download_path
+    # Get full trace
+    trace_steps = trace_variable_path(assignment_map, dependencies, variable_to_trace)
+
+    # Display results in console
+    print("\nTracing Path for Variable:", variable_to_trace)
+    for step in trace_steps:
+        print(step)
+
+    # Generate flowchart & save
+    output_file = "variable_trace_flowchart.png"
+    output_path = visualize_trace_and_save(trace_steps, output_file)
+
+    # Move to download directory
+    download_path = f"/mnt/data/{output_file}"
+    shutil.move(output_file, download_path)
+    
+    return download_path
+
+# Example usage (replace with actual notebook path and variable)
+notebook_path = "your_notebook.ipynb"
+variable_to_trace = "df_2"
+download_link = trace_and_visualize_variable(notebook_path, variable_to_trace)
+
+print(f"\nDownload Flowchart: {download_link}")
