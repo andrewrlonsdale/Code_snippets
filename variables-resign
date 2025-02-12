@@ -12,61 +12,91 @@ def extract_code_from_notebook(notebook_path):
     ]
     return "\n".join(["".join(cell) for cell in code_cells])
 
-def trace_variable(source_code, target_var):
+def parse_assignments(source_code):
     """
-    Traces back the original source of a variable in Python code.
-    
-    Args:
-    - source_code (str): The entire notebook code as a single string.
-    - target_var (str): The variable whose origin we are tracing.
+    Parses variable assignments in the given code.
     
     Returns:
-    - The original assignment (SQL query, table, or DataFrame reference).
+    - assignment_map: { var_name -> [list of its assignments] }
+    - dependencies: { var_name -> [list of vars used to create it] }
     """
     assignment_map = defaultdict(list)
-    
-    # Extract variable assignments
+    dependencies = defaultdict(list)
+
     assignment_pattern = re.compile(r"(\w+)\s*=\s*(.+)")
+    merge_pattern = re.compile(r"(\w+)\.merge\((\w+)")
+    sql_pattern = re.compile(r"(?:pd|spark)\.read_sql\(['\"](.+?)['\"]")
+    dataframe_read_pattern = re.compile(r"(?:pd|spark)\.read_(\w+)\((.+?)\)")
+
     lines = source_code.split("\n")
-    
+
     for line in lines:
         match = assignment_pattern.match(line)
         if match:
             var_name, expression = match.groups()
             assignment_map[var_name].append(expression.strip())
 
-    # Trace back the variable assignment
+            # Track dependencies
+            var_refs = re.findall(r"(\b\w+\b)", expression)  # Find variable-like references
+            dependencies[var_name].extend(var for var in var_refs if var in assignment_map)
+
+            # Check for merge operations
+            merge_match = merge_pattern.search(expression)
+            if merge_match:
+                left_df, right_df = merge_match.groups()
+                dependencies[var_name].extend([left_df, right_df])
+
+            # Detect SQL queries
+            sql_match = sql_pattern.search(expression)
+            if sql_match:
+                assignment_map[var_name].append(f"SQL Query: {sql_match.group(1)}")
+
+            # Detect DataFrame file reads
+            df_read_match = dataframe_read_pattern.search(expression)
+            if df_read_match:
+                read_type, source = df_read_match.groups()
+                assignment_map[var_name].append(f"File Read ({read_type}): {source}")
+
+    return assignment_map, dependencies
+
+def trace_variable(assignment_map, dependencies, target_var):
+    """
+    Traces the origin of a target variable, considering complex operations.
+    
+    Returns:
+    - List of all detected sources (SQL tables, files, or original DataFrames)
+    """
+    traced_sources = []
     seen_vars = set()
-    current_var = target_var
-    while current_var in assignment_map:
-        assignments = assignment_map[current_var]
-        last_assignment = assignments[-1]  # Most recent assignment
+    stack = [target_var]
 
-        # If SQL query or table reference is found
-        if "read_sql" in last_assignment or "SELECT" in last_assignment or "from " in last_assignment.lower():
-            return f"Variable {current_var} originates from SQL query: {last_assignment}"
-        if ".read_" in last_assignment or ".to_" in last_assignment:  # Pandas or Spark read/write
-            return f"Variable {current_var} originates from DataFrame operation: {last_assignment}"
-        
-        # If it's assigned to another variable, continue tracing
-        var_match = re.match(r"(\w+)", last_assignment)
-        if var_match:
-            new_var = var_match.group(1)
-            if new_var in seen_vars:  # Prevent infinite loops
-                return f"Loop detected, unable to trace beyond {new_var}"
-            seen_vars.add(new_var)
-            current_var = new_var
-        else:
-            return f"Original source unclear: {last_assignment}"
+    while stack:
+        current_var = stack.pop()
+        if current_var in seen_vars:
+            continue  # Prevent infinite loops
+        seen_vars.add(current_var)
 
-    return f"No origin found for variable {target_var}"
+        if current_var in assignment_map:
+            last_assignment = assignment_map[current_var][-1]
 
+            # If SQL or file read, it's a source
+            if "SQL Query:" in last_assignment or "File Read" in last_assignment:
+                traced_sources.append(f"{current_var}: {last_assignment}")
 
-# Example Usage:
+            # Add dependencies (e.g., in case of merges or chained transformations)
+            if current_var in dependencies:
+                stack.extend(dependencies[current_var])
+
+    return traced_sources if traced_sources else [f"No clear source found for {target_var}"]
+
+# Example Usage
 notebook_path = "your_notebook.ipynb"  # Replace with the actual notebook path
 variable_to_trace = "df_2"  # Replace with your target variable
 
 source_code = extract_code_from_notebook(notebook_path)
-origin = trace_variable(source_code, variable_to_trace)
+assignment_map, dependencies = parse_assignments(source_code)
+origin_sources = trace_variable(assignment_map, dependencies, variable_to_trace)
 
-print(origin)
+print("Tracing results:")
+for source in origin_sources:
+    print(source)
