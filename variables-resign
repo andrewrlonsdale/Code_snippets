@@ -1,0 +1,72 @@
+import json
+import re
+from collections import defaultdict
+
+def extract_code_from_notebook(notebook_path):
+    """Extracts code cells from a Jupyter notebook"""
+    with open(notebook_path, "r", encoding="utf-8") as f:
+        notebook = json.load(f)
+    
+    code_cells = [
+        cell["source"] for cell in notebook.get("cells", []) if cell["cell_type"] == "code"
+    ]
+    return "\n".join(["".join(cell) for cell in code_cells])
+
+def trace_variable(source_code, target_var):
+    """
+    Traces back the original source of a variable in Python code.
+    
+    Args:
+    - source_code (str): The entire notebook code as a single string.
+    - target_var (str): The variable whose origin we are tracing.
+    
+    Returns:
+    - The original assignment (SQL query, table, or DataFrame reference).
+    """
+    assignment_map = defaultdict(list)
+    
+    # Extract variable assignments
+    assignment_pattern = re.compile(r"(\w+)\s*=\s*(.+)")
+    lines = source_code.split("\n")
+    
+    for line in lines:
+        match = assignment_pattern.match(line)
+        if match:
+            var_name, expression = match.groups()
+            assignment_map[var_name].append(expression.strip())
+
+    # Trace back the variable assignment
+    seen_vars = set()
+    current_var = target_var
+    while current_var in assignment_map:
+        assignments = assignment_map[current_var]
+        last_assignment = assignments[-1]  # Most recent assignment
+
+        # If SQL query or table reference is found
+        if "read_sql" in last_assignment or "SELECT" in last_assignment or "from " in last_assignment.lower():
+            return f"Variable {current_var} originates from SQL query: {last_assignment}"
+        if ".read_" in last_assignment or ".to_" in last_assignment:  # Pandas or Spark read/write
+            return f"Variable {current_var} originates from DataFrame operation: {last_assignment}"
+        
+        # If it's assigned to another variable, continue tracing
+        var_match = re.match(r"(\w+)", last_assignment)
+        if var_match:
+            new_var = var_match.group(1)
+            if new_var in seen_vars:  # Prevent infinite loops
+                return f"Loop detected, unable to trace beyond {new_var}"
+            seen_vars.add(new_var)
+            current_var = new_var
+        else:
+            return f"Original source unclear: {last_assignment}"
+
+    return f"No origin found for variable {target_var}"
+
+
+# Example Usage:
+notebook_path = "your_notebook.ipynb"  # Replace with the actual notebook path
+variable_to_trace = "df_2"  # Replace with your target variable
+
+source_code = extract_code_from_notebook(notebook_path)
+origin = trace_variable(source_code, variable_to_trace)
+
+print(origin)
