@@ -14,7 +14,7 @@ def extract_code_from_notebook(notebook_path):
 
 def parse_assignments(source_code):
     """
-    Parses variable assignments in the given code.
+    Parses variable assignments and dependencies in the given code.
     
     Returns:
     - assignment_map: { var_name -> [list of its assignments] }
@@ -59,35 +59,37 @@ def parse_assignments(source_code):
 
     return assignment_map, dependencies
 
-def trace_variable(assignment_map, dependencies, target_var):
+def trace_variable_path(assignment_map, dependencies, target_var):
     """
-    Traces the origin of a target variable, considering complex operations.
+    Traces the full path of how a target variable was created, step by step.
     
     Returns:
-    - List of all detected sources (SQL tables, files, or original DataFrames)
+    - List of tracing steps from the original source(s) to the final variable.
     """
-    traced_sources = []
+    trace_steps = []
     seen_vars = set()
-    stack = [target_var]
+    stack = [(target_var, 0)]  # Stack stores (variable, indentation level)
 
     while stack:
-        current_var = stack.pop()
+        current_var, level = stack.pop()
         if current_var in seen_vars:
             continue  # Prevent infinite loops
         seen_vars.add(current_var)
 
         if current_var in assignment_map:
             last_assignment = assignment_map[current_var][-1]
+            trace_steps.append("  " * level + f"{current_var} = {last_assignment}")
 
             # If SQL or file read, it's a source
             if "SQL Query:" in last_assignment or "File Read" in last_assignment:
-                traced_sources.append(f"{current_var}: {last_assignment}")
+                continue  # Stop tracing this branch further
 
             # Add dependencies (e.g., in case of merges or chained transformations)
             if current_var in dependencies:
-                stack.extend(dependencies[current_var])
+                for dep in dependencies[current_var]:
+                    stack.append((dep, level + 1))
 
-    return traced_sources if traced_sources else [f"No clear source found for {target_var}"]
+    return trace_steps[::-1]  # Reverse order to show origin first
 
 # Example Usage
 notebook_path = "your_notebook.ipynb"  # Replace with the actual notebook path
@@ -95,8 +97,8 @@ variable_to_trace = "df_2"  # Replace with your target variable
 
 source_code = extract_code_from_notebook(notebook_path)
 assignment_map, dependencies = parse_assignments(source_code)
-origin_sources = trace_variable(assignment_map, dependencies, variable_to_trace)
+trace_steps = trace_variable_path(assignment_map, dependencies, variable_to_trace)
 
-print("Tracing results:")
-for source in origin_sources:
-    print(source)
+print("\nTracing Path for Variable:", variable_to_trace)
+for step in trace_steps:
+    print(step)
