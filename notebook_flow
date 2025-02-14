@@ -1,0 +1,170 @@
+import json
+import re
+import matplotlib.pyplot as plt
+import networkx as nx
+import shutil
+from collections import defaultdict
+
+# Step 1: Extract Code from Jupyter Notebook
+def extract_code_from_notebook(notebook_path):
+    """Extracts code cells from a Jupyter notebook"""
+    with open(notebook_path, "r", encoding="utf-8") as f:
+        notebook = json.load(f)
+    
+    code_cells = [
+        cell["source"] for cell in notebook.get("cells", []) if cell["cell_type"] == "code"
+    ]
+    return "\n".join(["".join(cell) for cell in code_cells])
+
+# Step 2: Parse Assignments & Dependencies
+def parse_full_code(source_code):
+    """
+    Parses all variable assignments in the given notebook code.
+    
+    Returns:
+    - assignment_map: { var_name -> [list of its assignments] }
+    - dependencies: { var_name -> [list of vars used to create it] }
+    """
+    assignment_map = defaultdict(list)
+    dependencies = defaultdict(list)
+    
+    assignment_pattern = re.compile(r"(\w+)\s*=\s*(.+)")
+    merge_pattern = re.compile(r"(\w+)\.merge\((\w+)")
+    sql_pattern = re.compile(r"(?:pd|spark)\.read_sql\(['\"](.+?)['\"]")
+    dataframe_read_pattern = re.compile(r"(?:pd|spark)\.read_(\w+)\((.+?)\)")
+
+    lines = source_code.split("\n")
+    all_variables = set()
+
+    for line in lines:
+        match = assignment_pattern.match(line)
+        if match:
+            var_name, expression = match.groups()
+            assignment_map[var_name].append(expression.strip())
+            all_variables.add(var_name)
+
+            # Track dependencies
+            var_refs = re.findall(r"(\b\w+\b)", expression)  # Find variable-like references
+            dependencies[var_name].extend(var for var in var_refs if var in assignment_map)
+
+            # Check for merge operations
+            merge_match = merge_pattern.search(expression)
+            if merge_match:
+                left_df, right_df = merge_match.groups()
+                dependencies[var_name].extend([left_df, right_df])
+
+            # Detect SQL queries
+            sql_match = sql_pattern.search(expression)
+            if sql_match:
+                assignment_map[var_name].append(f"SQL Query: {sql_match.group(1)}")
+
+            # Detect DataFrame file reads
+            df_read_match = dataframe_read_pattern.search(expression)
+            if df_read_match:
+                read_type, source = df_read_match.groups()
+                assignment_map[var_name].append(f"File Read ({read_type}): {source}")
+
+    return assignment_map, dependencies, all_variables
+
+# Step 3: Build the Flowchart Graph
+def build_full_flowchart(assignment_map, dependencies, all_variables):
+    """
+    Constructs a directed graph representing the full execution flow of the notebook.
+    """
+    G = nx.DiGraph()
+    node_labels = {}
+    node_colors = {}
+
+    start_node = "START"
+    end_node = "END"
+
+    G.add_node(start_node, color="green")
+    node_labels[start_node] = "START"
+    node_colors[start_node] = "green"
+
+    prev_nodes = set()  # Tracks last executed variables
+
+    for var in all_variables:
+        if var in assignment_map:
+            last_assignment = assignment_map[var][-1]
+            formatted_expr = "\n".join(last_assignment[i:i+30] for i in range(0, len(last_assignment), 30))  # Wrap text
+            G.add_node(var)
+            node_labels[var] = f"{var}\n({formatted_expr})"
+
+            # Determine node color
+            if "SQL Query:" in last_assignment:
+                node_colors[var] = "red"  # SQL Query
+            elif "File Read" in last_assignment:
+                node_colors[var] = "orange"  # File read
+            else:
+                node_colors[var] = "lightblue"  # Standard operation
+
+            # Link dependencies
+            if var in dependencies:
+                for dep in dependencies[var]:
+                    G.add_edge(dep, var)
+
+            prev_nodes.add(var)
+
+    # Merge flows and set the end
+    for var in prev_nodes:
+        G.add_edge(var, end_node)
+
+    G.add_node(end_node, color="green")
+    node_labels[end_node] = "END"
+    node_colors[end_node] = "green"
+
+    return G, node_labels, node_colors
+
+# Step 4: Visualize & Save Flowchart
+def visualize_full_flowchart(G, node_labels, node_colors, output_path="notebook_flowchart.png"):
+    """
+    Visualizes the notebook's execution flow with branching and merging flows.
+    """
+    plt.figure(figsize=(16, 10))
+    pos = nx.kamada_kawai_layout(G)  # Optimized for spacing
+
+    node_list = list(G.nodes())
+    node_color_list = [node_colors.get(n, "lightblue") for n in node_list]
+
+    nx.draw(G, pos, with_labels=True, node_color=node_color_list, edge_color="gray",
+            node_size=4500, font_size=10, arrows=True, cmap=plt.cm.Paired)
+
+    # Draw node labels with better spacing
+    for node, (x, y) in pos.items():
+        plt.text(x, y + 0.05, node_labels[node], fontsize=9, ha="center", va="center",
+                 bbox=dict(facecolor="white", alpha=0.6, edgecolor="black"))
+
+    plt.title("Notebook Execution Flowchart", fontsize=14)
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+    plt.close()
+
+    return output_path
+
+# Step 5: Main Function to Run Everything & Provide Download Link
+def generate_notebook_flowchart(notebook_path):
+    """
+    Extracts, parses, and visualizes the full execution flow of a Jupyter notebook.
+    """
+    # Extract and parse notebook code
+    source_code = extract_code_from_notebook(notebook_path)
+    assignment_map, dependencies, all_variables = parse_full_code(source_code)
+
+    # Build the flowchart
+    G, node_labels, node_colors = build_full_flowchart(assignment_map, dependencies, all_variables)
+
+    # Generate and save the flowchart
+    output_file = "notebook_flowchart.png"
+    output_path = visualize_full_flowchart(G, node_labels, node_colors, output_file)
+
+    # Move to download directory
+    download_path = f"/mnt/data/{output_file}"
+    shutil.move(output_file, download_path)
+
+    return download_path
+
+# Example usage (replace with actual notebook path)
+notebook_path = "your_notebook.ipynb"
+download_link = generate_notebook_flowchart(notebook_path)
+
+print(f"\nDownload Flowchart: {download_link}")
