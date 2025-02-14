@@ -1,0 +1,74 @@
+import json
+import pandas as pd
+import os
+
+def extract_first_reference(notebook_path, variable_names):
+    """
+    Extracts the first reference (assignment) of a list of variables in a Jupyter notebook.
+
+    Args:
+    - notebook_path (str): Path to the Jupyter notebook file.
+    - variable_names (list): List of variable names to search for.
+
+    Returns:
+    - List of dictionaries containing 'variable_name', 'code', and 'notebook_name'.
+    """
+    with open(notebook_path, "r", encoding="utf-8") as f:
+        notebook = json.load(f)
+
+    found_references = []
+    notebook_name = os.path.basename(notebook_path)
+
+    # Iterate through code cells
+    for cell in notebook.get("cells", []):
+        if cell["cell_type"] == "code":
+            code = "".join(cell["source"])
+            lines = code.split("\n")
+
+            # Check for first assignment of each variable
+            for var in variable_names:
+                assignment_pattern = rf"\b{var}\s*="
+                if any(re.search(assignment_pattern, line) for line in lines):
+                    found_references.append({
+                        "variable_name": var,
+                        "code": code,
+                        "notebook_name": notebook_name
+                    })
+                    # Stop looking for this variable once found in this notebook
+                    variable_names.remove(var)
+
+        # Stop searching if all variables have been found
+        if not variable_names:
+            break
+
+    return found_references
+
+def search_variables_in_notebooks(notebook_paths, variable_names):
+    """
+    Searches for the first reference of variables in multiple Jupyter notebooks.
+
+    Args:
+    - notebook_paths (list): List of notebook file paths.
+    - variable_names (list): List of variables to search for.
+
+    Returns:
+    - Pandas DataFrame with columns: variable_name, code, notebook_name.
+    """
+    results = []
+
+    for notebook in notebook_paths:
+        references = extract_first_reference(notebook, variable_names.copy())  # Copy to prevent modification
+        results.extend(references)
+
+    return pd.DataFrame(results, columns=["variable_name", "code", "notebook_name"])
+
+# Example Usage
+notebook_files = ["notebook1.ipynb", "notebook2.ipynb"]  # Replace with actual notebook paths
+variables_to_find = ["df_merged", "df_final", "sales_data"]
+
+# Search and create the table
+results_df = search_variables_in_notebooks(notebook_files, variables_to_find)
+
+# Display table
+import ace_tools as tools
+tools.display_dataframe_to_user(name="First Reference of Variables", dataframe=results_df)
