@@ -12,19 +12,18 @@ from rich.table import Table
 def reconstruct_vertical_text(vertical_text):
     """
     Reconstruct vertically aligned text into horizontal text.
-    Each column of characters is joined to form a horizontal string.
+    This version uses a join-of-joins to avoid repeated string concatenations.
     """
     lines = vertical_text.splitlines()
     if not lines:
         return ""
     max_length = max(len(line) for line in lines)
-    reconstructed = ""
-    for i in range(max_length):
-        for line in lines:
-            if i < len(line):
-                reconstructed += line[i]
-        reconstructed += " "  # separate words
-    return reconstructed.strip()
+    # Build each “column” (i.e. character in each row at position i), then join columns with spaces
+    columns = [
+        "".join(line[i] for line in lines if i < len(line))
+        for i in range(max_length)
+    ]
+    return " ".join(columns).strip()
 
 def clean_snippet(snippet):
     """
@@ -33,7 +32,7 @@ def clean_snippet(snippet):
     snippet = re.sub(r"<[^>]+>", "", snippet)
     snippet = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", snippet)
     snippet = re.sub(r"^#{1,6}\s+", "", snippet, flags=re.MULTILINE)
-    snippet = re.sub(r"(\*\*|\*|__|_|`|~~)", "", snippet)
+    snippet = re.sub(r"(\*\*|\*|`|~~)", "", snippet)
     snippet = re.sub(r"(^|\n)[>\-\*]\s+", r"\1", snippet)
     snippet = re.sub(r"{[^}]+}", "", snippet)
     snippet = re.sub(r"\s+", " ", snippet).strip()
@@ -41,98 +40,124 @@ def clean_snippet(snippet):
 
 def truncate(text, limit=100):
     """
-    Truncate the text to a maximum of limit characters, adding an ellipsis if needed.
+    Truncate the text to a maximum of limit characters, appending an ellipsis if needed.
     """
     return text if len(text) <= limit else text[:limit] + "..."
 
 # --------------------------
-# Notebook scanning function
+# Notebook scanning function (aggregated version)
 # --------------------------
 
-def search_notebooks_for_variable(variable, root_dir="code"):
+def search_notebooks_for_variables(variables, root_dir="code"):
     """
-    Walk through notebooks in root_dir and return a list of rows where the given variable is found.
-    Each row is a tuple:
-       (variable, notebook_path, cell_index, match_types, combined_snippets)
-    The match_types (e.g., "Source", "Horizontal Output") tell where the occurrence was found.
+    Walk through all notebooks in the given root directory once and search for any
+    of the supplied variables in each cell source and outputs.
+
+    Returns a tuple: (results, found_variables) where results is a list of tuples:
+      (variable, notebook_path, cell_index, classification, snippet)
+    and found_variables is the set of variables that were found at least once.
     """
-    rows = []
+    results = []
+    found_variables = set()
+
+    # Compile a union regex to search for any variable at once.
+    # We re.escape each variable in case special characters are present.
+    variable_pattern = re.compile("|".join(map(re.escape, variables)))
+
     for dirpath, dirnames, filenames in os.walk(root_dir):
-        # Skip .ipynb_checkpoints directories if present
+        # Skip checkpoint directories
         dirnames[:] = [d for d in dirnames if d != ".ipynb_checkpoints"]
-
         for filename in filenames:
-            if filename.endswith(".ipynb"):
-                notebook_path = os.path.join(dirpath, filename)
-                try:
-                    with open(notebook_path, "r", encoding="utf-8") as nb_file:
-                        notebook = json.load(nb_file)
-                except Exception as e:
-                    print(f"Error reading notebook {notebook_path}: {e}")
-                    continue
+            if not filename.endswith(".ipynb"):
+                continue
+            notebook_path = os.path.join(dirpath, filename)
+            try:
+                with open(notebook_path, "r", encoding="utf-8") as nb_file:
+                    notebook = json.load(nb_file)
+            except Exception as e:
+                print(f"Error reading notebook {notebook_path}: {e}")
+                continue
 
-                for cell_index, cell in enumerate(notebook.get("cells", []), start=1):
-                    combined_match_types = set()
-                    combined_snippets = []
+            for cell_index, cell in enumerate(notebook.get("cells", []), start=1):
+                # For each cell, we collect matches in a dictionary.
+                # Key: variable name, Value: {'match_types': set, 'snippets': [list of snippet parts]}
+                cell_matches = {}
 
-                    # Check the cell source
-                    cell_source = "".join(cell.get("source", []))
-                    if variable in cell_source:
-                        full_snippet = clean_snippet(cell_source)
-                        combined_match_types.add("Source")
-                        combined_snippets.append("Source:\n" + full_snippet)
+                # --- Check cell source ---
+                source = "".join(cell.get("source", []))
+                if source:
+                    source_matches = set(variable_pattern.findall(source))
+                    if source_matches:
+                        cleaned = clean_snippet(source)
+                        for var in source_matches:
+                            cell_matches.setdefault(var, {"match_types": set(), "snippets": []})
+                            cell_matches[var]["match_types"].add("Source")
+                            cell_matches[var]["snippets"].append("Source:\n" + cleaned)
 
-                    # Check outputs, both text and data outputs
-                    for output in cell.get("outputs", []):
-                        if "text" in output:
-                            output_text = "".join(output.get("text", []))
-                            reconstructed_text = reconstruct_vertical_text(output_text)
-                            if variable in output_text:
-                                raw_text = clean_snippet(output_text)
-                                truncated_text = truncate(raw_text, 100)
-                                combined_match_types.add("Horizontal Output")
-                                combined_snippets.append("Horizontal Output:\n" + truncated_text)
-                            elif variable in reconstructed_text:
-                                raw_text = clean_snippet(output_text)
-                                truncated_text = truncate(raw_text, 100)
-                                combined_match_types.add("Output (Text)")
-                                combined_snippets.append("Output (Text):\n" + truncated_text)
-                        if "data" in output:
-                            for key, value in output.get("data", {}).items():
-                                if isinstance(value, list):
-                                    output_data = "".join(value)
-                                else:
-                                    output_data = str(value)
-                                reconstructed_data = reconstruct_vertical_text(output_data)
-                                if variable in output_data:
-                                    raw_text = clean_snippet(output_data)
-                                    truncated_text = truncate(raw_text, 100)
-                                    combined_match_types.add("Horizontal Output")
-                                    combined_snippets.append("Horizontal Output (data):\n" + truncated_text)
-                                elif variable in reconstructed_data:
-                                    raw_text = clean_snippet(output_data)
-                                    truncated_text = truncate(raw_text, 100)
-                                    combined_match_types.add("Output (Data)")
-                                    combined_snippets.append("Output (Data):\n" + truncated_text)
+                # --- Check each output in the cell ---
+                for output in cell.get("outputs", []):
+                    # Check outputs that contain "text"
+                    if "text" in output:
+                        out_text = "".join(output.get("text", []))
+                        if out_text:
+                            cleaned_text = clean_snippet(out_text)
+                            truncated_text = truncate(cleaned_text, 100)
+                            # Horizontal match on output text
+                            horizontal_matches = set(variable_pattern.findall(out_text))
+                            for var in horizontal_matches:
+                                cell_matches.setdefault(var, {"match_types": set(), "snippets": []})
+                                cell_matches[var]["match_types"].add("Horizontal Output")
+                                cell_matches[var]["snippets"].append("Horizontal Output:\n" + truncated_text)
+                            # Also check reconstructed vertical text, but only add if not already found horizontally
+                            reconstructed = reconstruct_vertical_text(out_text)
+                            vertical_matches = set(variable_pattern.findall(reconstructed))
+                            vertical_only = vertical_matches - horizontal_matches
+                            for var in vertical_only:
+                                cell_matches.setdefault(var, {"match_types": set(), "snippets": []})
+                                cell_matches[var]["match_types"].add("Output (Text)")
+                                cell_matches[var]["snippets"].append("Output (Text):\n" + truncated_text)
 
-                    if combined_snippets:
-                        match_type_str = ", ".join(sorted(combined_match_types))
-                        cell_snippets = "\n\n---\n\n".join(combined_snippets)
-                        rows.append((variable, notebook_path, cell_index, match_type_str, cell_snippets))
-    return rows
+                    # Check outputs with "data"
+                    if "data" in output:
+                        for key, value in output.get("data", {}).items():
+                            out_data = "".join(value) if isinstance(value, list) else str(value)
+                            if out_data:
+                                cleaned_data = clean_snippet(out_data)
+                                truncated_data = truncate(cleaned_data, 100)
+                                horizontal_matches = set(variable_pattern.findall(out_data))
+                                for var in horizontal_matches:
+                                    cell_matches.setdefault(var, {"match_types": set(), "snippets": []})
+                                    cell_matches[var]["match_types"].add("Horizontal Output (data)")
+                                    cell_matches[var]["snippets"].append("Horizontal Output (data):\n" + truncated_data)
+                                reconstructed_data = reconstruct_vertical_text(out_data)
+                                vertical_matches = set(variable_pattern.findall(reconstructed_data))
+                                vertical_only = vertical_matches - horizontal_matches
+                                for var in vertical_only:
+                                    cell_matches.setdefault(var, {"match_types": set(), "snippets": []})
+                                    cell_matches[var]["match_types"].add("Output (Data)")
+                                    cell_matches[var]["snippets"].append("Output (Data):\n" + truncated_data)
+
+                # For each variable found in this cell, add a row.
+                for var, data in cell_matches.items():
+                    found_variables.add(var)
+                    # If a 'Source' match is present, we mark it as "Sourced"
+                    classification = "Sourced" if "Source" in data["match_types"] else "Direct Input"
+                    snippet = "\n\n---\n\n".join(data["snippets"])
+                    results.append((var, notebook_path, cell_index, classification, snippet))
+
+    return results, found_variables
 
 # --------------------------
 # Main processing function
 # --------------------------
 
 def main():
-    # Read your variable names from a CSV file. Expecting one variable per row.
+    # Read variable names from the CSV file. One variable per row.
     variables = []
     csv_variables_file = "variables.csv"
     try:
         with open(csv_variables_file, "r", encoding="utf-8") as f:
             reader = csv.reader(f)
-            # Optionally skip header if needed
             for row in reader:
                 if row and row[0].strip():
                     variables.append(row[0].strip())
@@ -140,45 +165,36 @@ def main():
         print(f"Error reading variable names from {csv_variables_file}: {exc}")
         return
 
-    # Process each variable
-    all_results = []
-    for var in variables:
-        results = search_notebooks_for_variable(var, root_dir="code")
-        if not results:
-            # If not found in any notebook, append a row noting that.
-            all_results.append((var, "Not Found", "", "Not Found", ""))
-        else:
-            # Sort so that rows with a "Source" match come first.
-            results_sorted = sorted(results, key=lambda r: (0 if "Source" in r[3] else 1, r[1], r[2]))
-            # Determine the classification.
-            classification = "Sourced" if any("Source" in row[3] for row in results_sorted) else "Direct Input"
-            # For the summary table, select the top/best match.
-            best_result = results_sorted[0]
-            best_notebook, best_cell, best_match_type, best_snippet = best_result[1], best_result[2], best_result[3], best_result[4]
-            all_results.append((var, best_notebook, best_cell, classification, best_snippet))
+    # Search notebooks for any occurrences of any variable (scanning notebooks only once)
+    results, found_variables = search_notebooks_for_variables(variables, root_dir="code")
 
-    # Display a summary table using Rich.
+    # For variables that were never found, add a "Not Found" result.
+    for var in variables:
+        if var not in found_variables:
+            results.append((var, "Not Found", "", "Not Found", ""))
+
+    # Build the summary table using Rich.
     console = Console()
     results_table = Table(title="Variable Sourcing Results", show_header=True, show_lines=True, expand=True)
-    results_table.add_column("Variable", style="dim")
+    results_table.add_column("Variable", style="magenta")
     results_table.add_column("Classification", style="green")
     results_table.add_column("Notebook", overflow="fold")
     results_table.add_column("Cell Number")
     results_table.add_column("Snippet", style="cyan", overflow="fold")
 
-    for result in all_results:
+    for result in results:
         variable, notebook, cell, classification, snippet = result
         results_table.add_row(variable, classification, str(notebook), str(cell), snippet)
 
     console.print(results_table)
 
-    # Save the summary results to a CSV file.
+    # Save the summary to a CSV file.
     summary_csv = "variable_results.csv"
     try:
         with open(summary_csv, "w", newline="", encoding="utf-8") as csv_file:
             writer = csv.writer(csv_file)
             writer.writerow(["Variable", "Notebook", "Cell Number", "Classification", "Snippet"])
-            writer.writerows(all_results)
+            writer.writerows(results)
         console.print(f"\nResults have been saved to '{summary_csv}'.")
     except Exception as e:
         console.print(f"[bold red]Error saving results to CSV: {e}[/bold red]")
