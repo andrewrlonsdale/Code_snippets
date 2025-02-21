@@ -1,0 +1,79 @@
+import os
+import json
+from prettytable import PrettyTable
+
+# Define the table name to search for
+table_name = "bis_date_last_act"
+
+# Set the root directory to search for notebooks (adjust as needed)
+root_dir = "code"
+
+# Initialize a total count of matches
+total_matches = 0
+
+# Create a table for displaying results
+results_table = PrettyTable()
+results_table.field_names = ["Notebook", "Cell Number", "Match Type", "Content Snippet"]
+
+# Walk through all files and subdirectories starting from root_dir
+for dirpath, dirnames, filenames in os.walk(root_dir):
+    for filename in filenames:
+        # Process only Jupyter Notebook files
+        if filename.endswith(".ipynb"):
+            notebook_path = os.path.join(dirpath, filename)
+            try:
+                # Open and load the notebook JSON
+                with open(notebook_path, "r", encoding="utf-8") as nb_file:
+                    notebook = json.load(nb_file)
+            except Exception as e:
+                print(f"Error reading notebook {notebook_path}: {e}")
+                continue
+
+            # Search for the table name in each cell
+            found_in_notebook = False
+            cell_number = 0  # Track the cell number
+            match_count_in_notebook = 0  # Count matches in the current notebook
+
+            for cell in notebook.get("cells", []):
+                cell_number += 1  # Increment cell number
+                # Search in cell source (code or markdown)
+                cell_source = "".join(cell.get("source", []))
+                if table_name in cell_source:
+                    snippet = cell_source[:100] + "..." if len(cell_source) > 100 else cell_source
+                    results_table.add_row([notebook_path, cell_number, "Source", snippet])
+                    found_in_notebook = True
+                    match_count_in_notebook += 1
+
+                # Search in cell outputs
+                for output in cell.get("outputs", []):
+                    if "text" in output:
+                        output_text = "".join(output.get("text", []))
+                        if table_name in output_text:
+                            snippet = output_text[:100] + "..." if len(output_text) > 100 else output_text
+                            results_table.add_row([notebook_path, cell_number, "Output (Text)", snippet])
+                            found_in_notebook = True
+                            match_count_in_notebook += 1
+                    if "data" in output:
+                        for key, value in output.get("data", {}).items():
+                            if isinstance(value, list):
+                                output_data = "".join(value)
+                            else:
+                                output_data = str(value)
+                            if table_name in output_data:
+                                snippet = output_data[:100] + "..." if len(output_data) > 100 else output_data
+                                results_table.add_row([notebook_path, cell_number, "Output (Data)", snippet])
+                                found_in_notebook = True
+                                match_count_in_notebook += 1
+
+            # Log the total matches in the current notebook
+            if match_count_in_notebook > 0:
+                total_matches += match_count_in_notebook
+
+# Display the results table
+if total_matches > 0:
+    print(results_table)
+else:
+    print(f"No occurrences of '{table_name}' found in any notebook.")
+
+# Display the total matches
+print(f"\nTotal occurrences of '{table_name}' across all notebooks: {total_matches}")
