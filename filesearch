@@ -6,7 +6,7 @@ from rich.console import Console
 from rich.table import Table
 
 # Define the table name to search for
-table_name = "bis_date_last_act"
+table_name = ""
 
 # Set the root directory to search for notebooks (adjust as needed)
 root_dir = "code"
