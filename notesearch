@@ -15,6 +15,20 @@ total_matches = 0
 results_table = PrettyTable()
 results_table.field_names = ["Notebook", "Cell Number", "Match Type", "Content Snippet"]
 
+def reconstruct_vertical_text(vertical_text):
+    """
+    Reconstruct vertically aligned text into horizontal text.
+    Each column of characters is joined to form a horizontal string.
+    """
+    lines = vertical_text.splitlines()
+    max_length = max(len(line) for line in lines)
+    reconstructed = ""
+    for i in range(max_length):
+        for line in lines:
+            if i < len(line                reconstructed += line[i]
+        reconstructed += " "  # Add space between reconstructed words
+    return reconstructed.strip()
+
 # Walk through all files and subdirectories starting from root_dir
 for dirpath, dirnames, filenames in os.walk(root_dir):
     for filename in filenames:
@@ -48,7 +62,9 @@ for dirpath, dirnames, filenames in os.walk(root_dir):
                 for output in cell.get("outputs", []):
                     if "text" in output:
                         output_text = "".join(output.get("text", []))
-                        if table_name in output_text:
+                        # Check for vertically aligned text
+                        reconstructed_text = reconstruct_vertical_text(output_text)
+                        if table_name in output_text or table_name in reconstructed_text:
                             snippet = output_text[:100] + "..." if len(output_text) > 100 else output_text
                             results_table.add_row([notebook_path, cell_number, "Output (Text)", snippet])
                             found_in_notebook = True
@@ -59,7 +75,9 @@ for dirpath, dirnames, filenames in os.walk(root_dir):
                                 output_data = "".join(value)
                             else:
                                 output_data = str(value)
-                            if table_name in output_data:
+                            # Check for vertically aligned text
+                            reconstructed_data = reconstruct_vertical_text(output_data)
+                            if table_name in output_data or table_name in reconstructed_data:
                                 snippet = output_data[:100] + "..." if len(output_data) > 100 else output_data
                                 results_table.add_row([notebook_path, cell_number, "Output (Data)", snippet])
                                 found_in_notebook = True
