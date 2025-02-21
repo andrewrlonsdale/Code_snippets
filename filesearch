@@ -11,11 +11,8 @@ table_name = ""
 # Set the root directory to search for notebooks (adjust as needed)
 root_dir = ""
 
-# Initialize a total count of cells with matches
-total_matches = 0
-
-# List to store results for CSV output
-csv_results = []
+# List to store rows for results and CSV output
+rows = []
 
 def reconstruct_vertical_text(vertical_text):
     """
@@ -50,44 +47,29 @@ def clean_snippet(snippet):
     snippet = re.sub(r"(^|\n)[>\-\*]\s+", r"\1", snippet)
     # Remove CSS or inline style declarations within curly braces
     snippet = re.sub(r"{[^}]+}", "", snippet)
-    # Remove extra whitespace
     snippet = re.sub(r"\s+", " ", snippet).strip()
     return snippet
 
 def truncate(text, limit=100):
     """
-    Truncate the text to a maximum length of 100 characters, adding an ellipsis if needed.
+    Truncate the text to a maximum length of 100 characters,
+    adding an ellipsis if the text exceeds the limit.
     """
     return text if len(text) <= limit else text[:limit] + "..."
 
-# Set up Rich console and table with expand=True for full-width display
-console = Console()
-results_table = Table(
-    title="Notebook Search Results",
-    show_header=True,
-    show_lines=True,
-    expand=True
-)
-# Notebook column: allow wrapping via overflow="fold"
-results_table.add_column("Notebook", style="dim", no_wrap=False, overflow="fold")
-results_table.add_column("Cell Number", justify="center")
-results_table.add_column("Match Type", style="green")
-results_table.add_column("Content Snippet", style="cyan", overflow="fold")
-
 # Walk through all files and subdirectories starting from root_dir
 for dirpath, dirnames, filenames in os.walk(root_dir):
-    # Remove .ipynb_checkpoints directories from the search
+    # Ignore checkpoints folder
     dirnames[:] = [d for d in dirnames if d != ".ipynb_checkpoints"]
 
     for filename in filenames:
-        # Process only Jupyter Notebook files
         if filename.endswith(".ipynb"):
             notebook_path = os.path.join(dirpath, filename)
             try:
                 with open(notebook_path, "r", encoding="utf-8") as nb_file:
                     notebook = json.load(nb_file)
             except Exception as e:
-                console.print(f"[red]Error reading notebook {notebook_path}: {e}[/red]")
+                print(f"Error reading notebook {notebook_path}: {e}")
                 continue
 
             # Use enumerate for accurate cell counting (starting from 1)
@@ -95,14 +77,14 @@ for dirpath, dirnames, filenames in os.walk(root_dir):
                 combined_match_types = set()
                 combined_snippets = []
 
-                # Check cell source – show full snippet
+                # Check cell source – show full snippet if matched
                 cell_source = "".join(cell.get("source", []))
                 if table_name in cell_source:
                     full_snippet = clean_snippet(cell_source)
                     combined_match_types.add("Source")
                     combined_snippets.append("Source:\n" + full_snippet)
 
-                # Check outputs – truncate snippet to 100 characters
+                # Check outputs – display truncated snippet (100 characters)
                 for output in cell.get("outputs", []):
                     if "text" in output:
                         output_text = "".join(output.get("text", []))
@@ -135,16 +117,37 @@ for dirpath, dirnames, filenames in os.walk(root_dir):
                                 combined_match_types.add("Output (Data)")
                                 combined_snippets.append("Output (Data):\n" + truncated_text)
 
-                # If the cell contains any match, add one row to the table
                 if combined_snippets:
                     match_type_str = ", ".join(sorted(combined_match_types))
                     cell_snippets = "\n\n---\n\n".join(combined_snippets)
-                    results_table.add_row(notebook_path, str(cell_index), match_type_str, cell_snippets)
-                    csv_results.append([notebook_path, cell_index, match_type_str, cell_snippets])
-                    total_matches += 1
+                    rows.append((notebook_path, cell_index, match_type_str, cell_snippets))
 
-# Display the results table using Rich
-if total_matches > 0:
+# Sort rows so that rows with "Source" in match type are first.
+rows_sorted = sorted(rows, key=lambda row: (0 if "Source" in row[2] else 1, row[0], row[1]))
+
+# Set up the Rich console and table
+console = Console()
+results_table = Table(
+    title="Notebook Search Results",
+    show_header=True,
+    show_lines=True,
+    expand=True  # Allow the table to use full terminal width
+)
+# Increase the minimum width for the Notebook column and allow wrapping.
+results_table.add_column("Notebook", style="dim", no_wrap=False, overflow="fold", min_width=60)
+results_table.add_column("Cell Number", justify="center")
+results_table.add_column("Match Type", style="green")
+results_table.add_column("Content Snippet", style="cyan", overflow="fold")
+
+# Prepare CSV results list (sorted rows)
+csv_results = []
+
+for notebook_path, cell_index, match_type_str, cell_snippets in rows_sorted:
+    results_table.add_row(notebook_path, str(cell_index), match_type_str, cell_snippets)
+    csv_results.append([notebook_path, cell_index, match_type_str, cell_snippets])
+
+# Display the sorted results table using Rich
+if rows_sorted:
     console.print(results_table)
 else:
     console.print(f"[bold red]No occurrences of '{table_name}' found in any notebook.[/bold red]")
@@ -157,4 +160,4 @@ with open(csv_file_path, "w", newline="", encoding="utf-8") as csv_file:
     writer.writerows(csv_results)
 
 console.print(f"\nResults have been saved to '{csv_file_path}'.")
-console.print(f"\nTotal number of cells with '{table_name}': {total_matches}")
+console.print(f"\nTotal number of cells with '{table_name}': {len(rows_sorted)}")
