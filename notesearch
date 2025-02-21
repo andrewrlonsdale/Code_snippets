@@ -3,10 +3,10 @@ import json
 from prettytable import PrettyTable
 
 # Define the table name to search for
-table_name = "bis_date_last_act"
+table_name = ""
 
 # Set the root directory to search for notebooks (adjust as needed)
-root_dir = "code"
+root_dir = ""
 
 # Initialize a total count of matches
 total_matches = 0
