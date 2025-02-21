@@ -1,5 +1,7 @@
 import os
 import json
+import re
+import csv
 from prettytable import PrettyTable
 
 # Define the table name to search for
@@ -15,6 +17,9 @@ total_matches = 0
 results_table = PrettyTable()
 results_table.field_names = ["Notebook", "Cell Number", "Match Type", "Content Snippet"]
 
+# List to store results for CSV output
+csv_results = []
+
 def reconstruct_vertical_text(vertical_text):
     """
     Reconstruct vertically aligned text into horizontal text.
@@ -25,9 +30,24 @@ def reconstruct_vertical_text(vertical_text):
     reconstructed = ""
     for i in range(max_length):
         for line in lines:
-            if i < len(line                reconstructed += line[i]
+            if i < len(line  # Ensure the index is within bounds
+                reconstructed += line[i]
         reconstructed += " "  # Add space between reconstructed words
     return reconstructed.strip()
+
+def clean_snippet(snippet):
+    """
+    Clean the content snippet by removing Markdown, HTML, and CSS.
+    """
+    # Remove HTML tags
+    snippet = re.sub(r"<[^>]+>", snippet)
+    # Remove Markdown formatting (e.g., **bold**, *italic*, `code`)
+    snippet = re.sub(r"(\*\*|\*|`|~~|#|>|-|\[|\]|\(|\))", "", snippet)
+    # Remove CSS or inline styles
+    snippet = re.sub(r"{[^}]+}", "", snippet)
+    # Remove extra whitespace
+    snippet = re.sub(r"\s+", " ", snippet).strip()
+    return snippet
 
 # Walk through all files and subdirectories starting from root_dir
 for dirpath, dirnames, filenames in os.walk(root_dir):
@@ -54,7 +74,9 @@ for dirpath, dirnames, filenames in os.walk(root_dir):
                 cell_source = "".join(cell.get("source", []))
                 if table_name in cell_source:
                     snippet = cell_source[:100] + "..." if len(cell_source) > 100 else cell_source
+                    snippet = clean_snippet(snippet)  # Clean the snippet
                     results_table.add_row([notebook_path, cell_number, "Source", snippet])
+                    csv_results.append([notebook_path, cell_number, "Source", snippet])
                     found_in_notebook = True
                     match_count_in_notebook += 1
 
@@ -64,9 +86,20 @@ for dirpath, dirnames, filenames in os.walk(root_dir):
                         output_text = "".join(output.get("text", []))
                         # Check for vertically aligned text
                         reconstructed_text = reconstruct_vertical_text(output_text)
-                        if table_name in output_text or table_name in reconstructed_text:
+                        if table_name in output_text:
+                            # Match is horizontal text
                             snippet = output_text[:100] + "..." if len(output_text) > 100 else output_text
+                            snippet = clean_snippet(snippet)  # Clean the snippet
+                            results_table.add_row([notebook_path, cell_number, "Horizontal Output", snippet])
+                            csv_results.append([notebook_path, cell_number, "Horizontal Output", snippet])
+                            found_in_notebook = True
+                            match_count_in_notebook += 1
+                        elif table_name in reconstructed_text:
+                            # Match is vertically aligned text
+                            snippet = output_text[:100] + "..." if len(output_text) > 100 else output_text
+                            snippet = clean_snippet(snippet)  # Clean the snippet
                             results_table.add_row([notebook_path, cell_number, "Output (Text)", snippet])
+                            csv_results.append([notebook_path, cell_number, "Output (Text)", snippet])
                             found_in_notebook = True
                             match_count_in_notebook += 1
                     if "data" in output:
@@ -77,9 +110,20 @@ for dirpath, dirnames, filenames in os.walk(root_dir):
                                 output_data = str(value)
                             # Check for vertically aligned text
                             reconstructed_data = reconstruct_vertical_text(output_data)
-                            if table_name in output_data or table_name in reconstructed_data:
+                            if table_name in output_data:
+                                # Match is horizontal text
                                 snippet = output_data[:100] + "..." if len(output_data) > 100 else output_data
+                                snippet = clean_snippet(snippet)  # Clean the snippet
+                                results_table.add_row([notebook_path, cell_number, "Horizontal Output", snippet])
+                                csv_results.append([notebook_path, cell_number, "Horizontal Output", snippet])
+                                found_in_notebook = True
+                                match_count_in_notebook += 1
+                            elif table_name in reconstructed_data:
+                                # Match is vertically aligned text
+                                snippet = output_data[:100] + "..." if len(output_data) > 100 else output_data
+                                snippet = clean_snippet(snippet)  # Clean the snippet
                                 results_table.add_row([notebook_path, cell_number, "Output (Data)", snippet])
+                                csv_results.append([notebook_path, cell_number, "Output (Data)", snippet])
                                 found_in_notebook = True
                                 match_count_in_notebook += 1
 
@@ -93,5 +137,12 @@ if total_matches > 0:
 else:
     print(f"No occurrences of '{table_name}' found in any notebook.")
 
-# Display the total matches
+# Save results to a CSV file
+csv_file_path = "results.csv"
+with open(csv_file_path, "w", newline="", encoding="utf-8") as csv_file:
+    writer = csv.writer(csv_file)
+    writer.writerow(["Notebook", "Cell Number", "Match Type", "Content Snippet"])
+    writer.writerows(csv_results)
+
+print(f"\nResults have been saved to '{csv_file_path}'.")
 print(f"\nTotal occurrences of '{table_name}' across all notebooks: {total_matches}")
