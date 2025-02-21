@@ -5,10 +5,10 @@ import csv
 from prettytable import PrettyTable
 
 # Define the table name to search for
-table_name = ""
+table_name = "bis_date_last_act"
 
 # Set the root directory to search for notebooks (adjust as needed)
-root_dir = ""
+root_dir = "code"
 
 # Initialize a total count of cells with matches
 total_matches = 0
@@ -47,7 +47,7 @@ def clean_snippet(snippet):
     snippet = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", snippet)
     # Remove Markdown headers (e.g., # Header, ## Header)
     snippet = re.sub(r"^#{1,6}\s+", "", snippet, flags=re.MULTILINE)
-    # Remove Markdown emphasis and inline code formatting (e.g., **bold**, *italic*, `code`, __underline__, ~~strike~~)
+    # Remove Markdown emphasis and inline code (e.g., **bold**, *italic*, `code`, __underline__, ~~strike~~)
     snippet = re.sub(r"(\*\*|\*|__|_|`|~~)", "", snippet)
     # Remove Markdown blockquotes and list markers (e.g., >, -, *)
     snippet = re.sub(r"(^|\n)[>\-\*]\s+", r"\1", snippet)
@@ -56,6 +56,12 @@ def clean_snippet(snippet):
     # Remove extra whitespace
     snippet = re.sub(r"\s+", " ", snippet).strip()
     return snippet
+
+def truncate(text, limit=100):
+    """
+    Truncate the text to a maximum length of 100 characters.
+    """
+    return text if len(text) <= limit else text[:limit] + "..."
 
 # Walk through all files and subdirectories starting from root_dir
 for dirpath, dirnames, filenames in os.walk(root_dir):
@@ -70,29 +76,34 @@ for dirpath, dirnames, filenames in os.walk(root_dir):
                 print(f"Error reading notebook {notebook_path}: {e}")
                 continue
 
-            # Use enumerate to count cells in the notebook correctly (starting from 1)
+            # Use enumerate for accurate cell counting (starting from 1)
             for cell_index, cell in enumerate(notebook.get("cells", []), start=1):
-                # Initialize a set for match types and list for snippets for this cell
+                # Initialize sets and lists for match types and snippets for this cell
                 combined_match_types = set()
                 combined_snippets = []
 
-                # Check cell source (for code or markdown cells)
+                # Check cell source (for code or markdown cells) – full snippet
                 cell_source = "".join(cell.get("source", []))
                 if table_name in cell_source:
+                    full_snippet = clean_snippet(cell_source)
                     combined_match_types.add("Source")
-                    combined_snippets.append("Source:\n" + clean_snippet(cell_source))
+                    combined_snippets.append("Source:\n" + full_snippet)
 
-                # Check cell outputs if available
+                # Check cell outputs if available – truncated snippet (100 characters)
                 for output in cell.get("outputs", []):
                     if "text" in output:
                         output_text = "".join(output.get("text", []))
                         reconstructed_text = reconstruct_vertical_text(output_text)
                         if table_name in output_text:
+                            raw_text = clean_snippet(output_text)
+                            truncated_text = truncate(raw_text, 100)
                             combined_match_types.add("Horizontal Output")
-                            combined_snippets.append("Horizontal Output:\n" + clean_snippet(output_text))
+                            combined_snippets.append("Horizontal Output:\n" + truncated_text)
                         elif table_name in reconstructed_text:
+                            raw_text = clean_snippet(output_text)
+                            truncated_text = truncate(raw_text, 100)
                             combined_match_types.add("Output (Text)")
-                            combined_snippets.append("Output (Text):\n" + clean_snippet(output_text))
+                            combined_snippets.append("Output (Text):\n" + truncated_text)
                     if "data" in output:
                         for key, value in output.get("data", {}).items():
                             if isinstance(value, list):
@@ -101,16 +112,19 @@ for dirpath, dirnames, filenames in os.walk(root_dir):
                                 output_data = str(value)
                             reconstructed_data = reconstruct_vertical_text(output_data)
                             if table_name in output_data:
+                                raw_text = clean_snippet(output_data)
+                                truncated_text = truncate(raw_text, 100)
                                 combined_match_types.add("Horizontal Output")
-                                combined_snippets.append("Horizontal Output (data):\n" + clean_snippet(output_data))
+                                combined_snippets.append("Horizontal Output (data):\n" + truncated_text)
                             elif table_name in reconstructed_data:
+                                raw_text = clean_snippet(output_data)
+                                truncated_text = truncate(raw_text, 100)
                                 combined_match_types.add("Output (Data)")
-                                combined_snippets.append("Output (Data):\n" + clean_snippet(output_data))
+                                combined_snippets.append("Output (Data):\n" + truncated_text)
 
-                # If the cell contains any match, add one row to the table and CSV
+                # If the cell contains any match, add one row to the results
                 if combined_snippets:
                     match_type_str = ", ".join(sorted(combined_match_types))
-                    # Join multiple snippets with a separator for clarity
                     cell_snippets = "\n\n---\n\n".join(combined_snippets)
                     results_table.add_row([notebook_path, cell_index, match_type_str, cell_snippets])
                     csv_results.append([notebook_path, cell_index, match_type_str, cell_snippets])
