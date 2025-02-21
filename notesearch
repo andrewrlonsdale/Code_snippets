@@ -26,11 +26,13 @@ def reconstruct_vertical_text(vertical_text):
     Each column of characters is joined to form a horizontal string.
     """
     lines = vertical_text.splitlines()
+    if not lines:
+        return ""
     max_length = max(len(line) for line in lines)
     reconstructed = ""
     for i in range(max_length):
         for line in lines:
-            if i < len(line  # Ensure the index is within bounds
+            if i < len(line):  # Ensure the index is within bounds
                 reconstructed += line[i]
         reconstructed += " "  # Add space between reconstructed words
     return reconstructed.strip()
@@ -40,8 +42,7 @@ def clean_snippet(snippet):
     Clean the content snippet by removing Markdown, HTML, and CSS.
     """
     # Remove HTML tags
-    snippet = re.sub(r"<[^>]+>", snippet)
-    # Remove Markdown formatting (e.g., **bold**, *italic*, `code`)
+  # Remove Markdown formatting (e.g., **bold**, *italic*, `code`)
     snippet = re.sub(r"(\*\*|\*|`|~~|#|>|-|\[|\]|\(|\))", "", snippet)
     # Remove CSS or inline styles
     snippet = re.sub(r"{[^}]+}", "", snippet)
@@ -63,44 +64,38 @@ for dirpath, dirnames, filenames in os.walk(root_dir):
                 print(f"Error reading notebook {notebook_path}: {e}")
                 continue
 
-            # Search for the table name in each cell
-            found_in_notebook = False
-            cell_number = 0  # Track the cell number
-            match_count_in_notebook = 0  # Count matches in the current notebook
+            cell_number = 0             # Track the cell number
+            match_count_in_notebook = 0 # Count matches in the current notebook
 
+            # Search for the table name in each cell
             for cell in notebook.get("cells", []):
                 cell_number += 1  # Increment cell number
-                # Search in cell source (code or markdown)
+
+                # Check the cell source (code or markdown)
                 cell_source = "".join(cell.get("source", []))
                 if table_name in cell_source:
                     snippet = cell_source[:100] + "..." if len(cell_source) > 100 else cell_source
-                    snippet = clean_snippet(snippet)  # Clean the snippet
+                    snippet = clean_snippet(snippet)
                     results_table.add_row([notebook_path, cell_number, "Source", snippet])
                     csv_results.append([notebook_path, cell_number, "Source", snippet])
-                    found_in_notebook = True
                     match_count_in_notebook += 1
 
-                # Search in cell outputs
+                # Search in the cell outputs
                 for output in cell.get("outputs", []):
                     if "text" in output:
                         output_text = "".join(output.get("text", []))
-                        # Check for vertically aligned text
                         reconstructed_text = reconstruct_vertical_text(output_text)
                         if table_name in output_text:
-                            # Match is horizontal text
                             snippet = output_text[:100] + "..." if len(output_text) > 100 else output_text
-                            snippet = clean_snippet(snippet)  # Clean the snippet
+                            snippet = clean_snippet(snippet)
                             results_table.add_row([notebook_path, cell_number, "Horizontal Output", snippet])
                             csv_results.append([notebook_path, cell_number, "Horizontal Output", snippet])
-                            found_in_notebook = True
                             match_count_in_notebook += 1
                         elif table_name in reconstructed_text:
-                            # Match is vertically aligned text
                             snippet = output_text[:100] + "..." if len(output_text) > 100 else output_text
-                            snippet = clean_snippet(snippet)  # Clean the snippet
+                            snippet = clean_snippet(snippet)
                             results_table.add_row([notebook_path, cell_number, "Output (Text)", snippet])
                             csv_results.append([notebook_path, cell_number, "Output (Text)", snippet])
-                            found_in_notebook = True
                             match_count_in_notebook += 1
                     if "data" in output:
                         for key, value in output.get("data", {}).items():
@@ -108,28 +103,21 @@ for dirpath, dirnames, filenames in os.walk(root_dir):
                                 output_data = "".join(value)
                             else:
                                 output_data = str(value)
-                            # Check for vertically aligned text
                             reconstructed_data = reconstruct_vertical_text(output_data)
                             if table_name in output_data:
-                                # Match is horizontal text
                                 snippet = output_data[:100] + "..." if len(output_data) > 100 else output_data
-                                snippet = clean_snippet(snippet)  # Clean the snippet
+                                snippet = clean_snippet(snippet)
                                 results_table.add_row([notebook_path, cell_number, "Horizontal Output", snippet])
                                 csv_results.append([notebook_path, cell_number, "Horizontal Output", snippet])
-                                found_in_notebook = True
                                 match_count_in_notebook += 1
                             elif table_name in reconstructed_data:
-                                # Match is vertically aligned text
                                 snippet = output_data[:100] + "..." if len(output_data) > 100 else output_data
-                                snippet = clean_snippet(snippet)  # Clean the snippet
+                                snippet = clean_snippet(snippet)
                                 results_table.add_row([notebook_path, cell_number, "Output (Data)", snippet])
                                 csv_results.append([notebook_path, cell_number, "Output (Data)", snippet])
-                                found_in_notebook = True
                                 match_count_in_notebook += 1
 
-            # Log the total matches in the current notebook
-            if match_count_in_notebook > 0:
-                total_matches += match_count_in_notebook
+            total_matches += match_count_in_notebook
 
 # Display the results table
 if total_matches > 0:
