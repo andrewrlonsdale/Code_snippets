@@ -6,12 +6,12 @@ from rich.console import Console
 from rich.table import Table
 
 # Define the table name to search for
-table_name = ""
+table_name = "bis_date_last_act"
 
 # Set the root directory to search for notebooks (adjust as needed)
-root_dir = ""
+root_dir = "code"
 
-# List to store rows for results and CSV output
+# List to store rows for results
 rows = []
 
 def reconstruct_vertical_text(vertical_text):
@@ -47,6 +47,7 @@ def clean_snippet(snippet):
     snippet = re.sub(r"(^|\n)[>\-\*]\s+", r"\1", snippet)
     # Remove CSS or inline style declarations within curly braces
     snippet = re.sub(r"{[^}]+}", "", snippet)
+    # Remove extra whitespace
     snippet = re.sub(r"\s+", " ", snippet).strip()
     return snippet
 
@@ -59,7 +60,7 @@ def truncate(text, limit=100):
 
 # Walk through all files and subdirectories starting from root_dir
 for dirpath, dirnames, filenames in os.walk(root_dir):
-    # Ignore checkpoints folder
+    # Ignore the checkpoints directory
     dirnames[:] = [d for d in dirnames if d != ".ipynb_checkpoints"]
 
     for filename in filenames:
@@ -122,7 +123,7 @@ for dirpath, dirnames, filenames in os.walk(root_dir):
                     cell_snippets = "\n\n---\n\n".join(combined_snippets)
                     rows.append((notebook_path, cell_index, match_type_str, cell_snippets))
 
-# Sort rows so that rows with "Source" in match type are first.
+# Sort rows so that rows containing a "Source" match appear first
 rows_sorted = sorted(rows, key=lambda row: (0 if "Source" in row[2] else 1, row[0], row[1]))
 
 # Set up the Rich console and table
@@ -131,28 +132,28 @@ results_table = Table(
     title="Notebook Search Results",
     show_header=True,
     show_lines=True,
-    expand=True  # Allow the table to use full terminal width
+    expand=True  # Allow table to use full terminal width
 )
-# Increase the minimum width for the Notebook column and allow wrapping.
 results_table.add_column("Notebook", style="dim", no_wrap=False, overflow="fold", min_width=60)
 results_table.add_column("Cell Number", justify="center")
 results_table.add_column("Match Type", style="green")
 results_table.add_column("Content Snippet", style="cyan", overflow="fold")
 
-# Prepare CSV results list (sorted rows)
+# Build both the table and the CSV data from the sorted rows
 csv_results = []
-
 for notebook_path, cell_index, match_type_str, cell_snippets in rows_sorted:
     results_table.add_row(notebook_path, str(cell_index), match_type_str, cell_snippets)
-    csv_results.append([notebook_path, cell_index, match_type_str, cell_snippets])
+    # Replace newlines with a separator for CSV output so all data stays on one line per cell
+    csv_snippets = cell_snippets.replace("\n", " | ")
+    csv_results.append([notebook_path, cell_index, match_type_str, csv_snippets])
 
-# Display the sorted results table using Rich
+# Display the table using Rich
 if rows_sorted:
     console.print(results_table)
 else:
     console.print(f"[bold red]No occurrences of '{table_name}' found in any notebook.[/bold red]")
 
-# Save results to a CSV file
+# Save the results to a CSV file using the same sorted data
 csv_file_path = "results.csv"
 with open(csv_file_path, "w", newline="", encoding="utf-8") as csv_file:
     writer = csv.writer(csv_file)
