@@ -10,7 +10,7 @@ table_name = ""
 # Set the root directory to search for notebooks (adjust as needed)
 root_dir = ""
 
-# Initialize a total count of matches
+# Initialize a total count of cells with matches
 total_matches = 0
 
 # Create a table for displaying results
@@ -32,7 +32,7 @@ def reconstruct_vertical_text(vertical_text):
     reconstructed = ""
     for i in range(max_length):
         for line in lines:
-            if i < len(line):  # Ensure the index is within bounds
+            if i < len(line):
                 reconstructed += line[i]
         reconstructed += " "  # Add space between reconstructed words
     return reconstructed.strip()
@@ -42,9 +42,16 @@ def clean_snippet(snippet):
     Clean the content snippet by removing Markdown, HTML, and CSS.
     """
     # Remove HTML tags
-  # Remove Markdown formatting (e.g., **bold**, *italic*, `code`)
-    snippet = re.sub(r"(\*\*|\*|`|~~|#|>|-|\[|\]|\(|\))", "", snippet)
-    # Remove CSS or inline styles
+    snippet = re.sub(r"<[^>]+>", "", snippet)
+    # Remove Markdown links (e.g., [text](url)) and preserve only the text
+    snippet = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", snippet)
+    # Remove Markdown headers (e.g., # Header, ## Header)
+    snippet = re.sub(r"^#{1,6}\s+", "", snippet, flags=re.MULTILINE)
+    # Remove Markdown emphasis and inline code formatting (e.g., **bold**, *italic*, `code`, __underline__, ~~strike~~)
+    snippet = re.sub(r"(\*\*|\*|__|_|`|~~)", "", snippet)
+    # Remove Markdown blockquotes and list markers (e.g., >, -, *)
+    snippet = re.sub(r"(^|\n)[>\-\*]\s+", r"\1", snippet)
+    # Remove CSS or inline style declarations within curly braces
     snippet = re.sub(r"{[^}]+}", "", snippet)
     # Remove extra whitespace
     snippet = re.sub(r"\s+", " ", snippet).strip()
@@ -57,46 +64,35 @@ for dirpath, dirnames, filenames in os.walk(root_dir):
         if filename.endswith(".ipynb"):
             notebook_path = os.path.join(dirpath, filename)
             try:
-                # Open and load the notebook JSON
                 with open(notebook_path, "r", encoding="utf-8") as nb_file:
                     notebook = json.load(nb_file)
             except Exception as e:
                 print(f"Error reading notebook {notebook_path}: {e}")
                 continue
 
-            cell_number = 0             # Track the cell number
-            match_count_in_notebook = 0 # Count matches in the current notebook
+            # Use enumerate to count cells in the notebook correctly (starting from 1)
+            for cell_index, cell in enumerate(notebook.get("cells", []), start=1):
+                # Initialize a set for match types and list for snippets for this cell
+                combined_match_types = set()
+                combined_snippets = []
 
-            # Search for the table name in each cell
-            for cell in notebook.get("cells", []):
-                cell_number += 1  # Increment cell number
-
-                # Check the cell source (code or markdown)
+                # Check cell source (for code or markdown cells)
                 cell_source = "".join(cell.get("source", []))
                 if table_name in cell_source:
-                    snippet = cell_source[:100] + "..." if len(cell_source) > 100 else cell_source
-                    snippet = clean_snippet(snippet)
-                    results_table.add_row([notebook_path, cell_number, "Source", snippet])
-                    csv_results.append([notebook_path, cell_number, "Source", snippet])
-                    match_count_in_notebook += 1
+                    combined_match_types.add("Source")
+                    combined_snippets.append("Source:\n" + clean_snippet(cell_source))
 
-                # Search in the cell outputs
+                # Check cell outputs if available
                 for output in cell.get("outputs", []):
                     if "text" in output:
                         output_text = "".join(output.get("text", []))
                         reconstructed_text = reconstruct_vertical_text(output_text)
                         if table_name in output_text:
-                            snippet = output_text[:100] + "..." if len(output_text) > 100 else output_text
-                            snippet = clean_snippet(snippet)
-                            results_table.add_row([notebook_path, cell_number, "Horizontal Output", snippet])
-                            csv_results.append([notebook_path, cell_number, "Horizontal Output", snippet])
-                            match_count_in_notebook += 1
+                            combined_match_types.add("Horizontal Output")
+                            combined_snippets.append("Horizontal Output:\n" + clean_snippet(output_text))
                         elif table_name in reconstructed_text:
-                            snippet = output_text[:100] + "..." if len(output_text) > 100 else output_text
-                            snippet = clean_snippet(snippet)
-                            results_table.add_row([notebook_path, cell_number, "Output (Text)", snippet])
-                            csv_results.append([notebook_path, cell_number, "Output (Text)", snippet])
-                            match_count_in_notebook += 1
+                            combined_match_types.add("Output (Text)")
+                            combined_snippets.append("Output (Text):\n" + clean_snippet(output_text))
                     if "data" in output:
                         for key, value in output.get("data", {}).items():
                             if isinstance(value, list):
@@ -105,19 +101,20 @@ for dirpath, dirnames, filenames in os.walk(root_dir):
                                 output_data = str(value)
                             reconstructed_data = reconstruct_vertical_text(output_data)
                             if table_name in output_data:
-                                snippet = output_data[:100] + "..." if len(output_data) > 100 else output_data
-                                snippet = clean_snippet(snippet)
-                                results_table.add_row([notebook_path, cell_number, "Horizontal Output", snippet])
-                                csv_results.append([notebook_path, cell_number, "Horizontal Output", snippet])
-                                match_count_in_notebook += 1
+                                combined_match_types.add("Horizontal Output")
+                                combined_snippets.append("Horizontal Output (data):\n" + clean_snippet(output_data))
                             elif table_name in reconstructed_data:
-                                snippet = output_data[:100] + "..." if len(output_data) > 100 else output_data
-                                snippet = clean_snippet(snippet)
-                                results_table.add_row([notebook_path, cell_number, "Output (Data)", snippet])
-                                csv_results.append([notebook_path, cell_number, "Output (Data)", snippet])
-                                match_count_in_notebook += 1
+                                combined_match_types.add("Output (Data)")
+                                combined_snippets.append("Output (Data):\n" + clean_snippet(output_data))
 
-            total_matches += match_count_in_notebook
+                # If the cell contains any match, add one row to the table and CSV
+                if combined_snippets:
+                    match_type_str = ", ".join(sorted(combined_match_types))
+                    # Join multiple snippets with a separator for clarity
+                    cell_snippets = "\n\n---\n\n".join(combined_snippets)
+                    results_table.add_row([notebook_path, cell_index, match_type_str, cell_snippets])
+                    csv_results.append([notebook_path, cell_index, match_type_str, cell_snippets])
+                    total_matches += 1
 
 # Display the results table
 if total_matches > 0:
@@ -133,4 +130,4 @@ with open(csv_file_path, "w", newline="", encoding="utf-8") as csv_file:
     writer.writerows(csv_results)
 
 print(f"\nResults have been saved to '{csv_file_path}'.")
-print(f"\nTotal occurrences of '{table_name}' across all notebooks: {total_matches}")
+print(f"\nTotal number of cells with '{table_name}': {total_matches}")
