@@ -1,0 +1,41 @@
+import awswrangler as wr
+import pandas as pd
+
+# AWS Glue Catalog database and table names
+database = "your_database"
+table1 = "your_table1"
+table2 = "your_table2"
+
+# List of variables
+variables = ["var1", "var2", "var3", "var4", "..."]  # Add all 400 variables here
+
+# Output CSV file
+output_file = "output.csv"
+
+# Generate the query
+def generate_query(variables, table1, table2):
+    query_parts = []
+    for var in variables:
+        query_parts.append(f"""
+            SELECT '{var}' AS variable_name,
+                   
+        """)
+    return " UNION ALL ".join(query_parts)
+
+# Execute the query and write results to CSV
+def execute_query_and_write_to_csv(query, database, output_file):
+    try:
+        # Execute the query using AWS Wrangler
+        df = wr.athena.read_sql_query(query, database=database)
+
+        # Write results to CSV
+        df.to_csv(output_file, index=False)
+        print(f"Results written to {output_file}")
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+# Main execution
+if __name__ == "__main__":
+    query = generate_query(variables, table1, table2)
+    execute_query_and_write_to_csv(query, database, output_file)
