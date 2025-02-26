@@ -19,3 +19,12 @@ df.to_parquet("cleaned_file.parquet", index=False)
 df.to_csv("cleaned_file.csv", index=False)
 
 print("Transformation complete. Date format changed to 'DD-MMM-YY' as string.")
+
+
+
+
+
+
+# Replace '9999' with '1999' in the 'Trans_date' column (keeps string format)
+df["date"] = df["date"].str.replace(r"(\d{2}/\d{2}/)9999", r"\g<1>1999", regex=True)
+
