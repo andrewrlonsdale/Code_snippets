@@ -1,0 +1,18 @@
+import pandas as pd
+
+# Load the parquet file
+df = pd.read_parquet("your_file.parquet")
+
+# Rename columns to lowercase
+df.columns = [col.lower() for col in df.columns]
+
+# Convert 'trans_date' to proper date format
+df["trans_date"] = pd.to_datetime(df["trans_date"], format="%d-%b-%y")
+
+# Save the cleaned data back
+df.to_parquet("cleaned_file.parquet", index=False)
+
+# Optional: Save as CSV for easier checking
+df.to_csv("cleaned_file.csv", index=False)
+
+print("Transformation complete. File saved.")
