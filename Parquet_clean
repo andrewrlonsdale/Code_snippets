@@ -3,16 +3,19 @@ import pandas as pd
 # Load the parquet file
 df = pd.read_parquet("your_file.parquet")
 
-# Rename columns to lowercase
-df.columns = [col.lower() for col in df.columns]
+# Rename columns: lowercase first, then capitalize the first letter
+df.columns = [col.lower().capitalize() for col in df.columns]
 
-# Convert 'trans_date' to proper date format
-df["trans_date"] = pd.to_datetime(df["trans_date"], format="%d-%b-%y")
+# Convert 'Trans_date' to datetime format first
+df["Trans_date"] = pd.to_datetime(df["Trans_date"], format="%d/%m/%Y")
 
-# Save the cleaned data back
+# Convert back to the desired string format 'DD-MMM-YY'
+df["Trans_date"] = df["Trans_date"].dt.strftime("%d-%b-%y")  # Example: 04-Feb-10
+
+# Save the transformed file
 df.to_parquet("cleaned_file.parquet", index=False)
 
-# Optional: Save as CSV for easier checking
+# Optional: Save as CSV for checking
 df.to_csv("cleaned_file.csv", index=False)
 
-print("Transformation complete. File saved.")
+print("Transformation complete. Date format changed to 'DD-MMM-YY' as string.")
