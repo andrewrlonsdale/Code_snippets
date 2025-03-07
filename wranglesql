@@ -1,0 +1,19 @@
+import awswrangler as wr
+
+# Define your SQL query
+create_table_query = """
+CREATE TABLE my_table (
+    id INT,
+    name STRING,
+    created_at TIMESTAMP
+)
+STORED AS PARQUET
+LOCATION 's3://my-bucket/my-folder/';
+"""
+
+# Execute the query
+wr.athena.start_query_execution(
+    sql=create_table_query,
+    database="my_database",  # Replace with your Athena database name
+    workgroup="primary"  # Replace with your Athena workgroup if needed
+)
