@@ -1,0 +1,7 @@
+chunk_size = 1000
+chunks = [numeric_values[i:i + chunk_size] for i in range(0, len(numeric_values), chunk_size)]
+
+for chunk in chunks:
+    sql_values = ', '.join(map(str, chunk))
+    sql_query = f"SELECT * FROM table_name WHERE int_column_name IN ({sql_values});"
+    print(sql_query)  # Execute the query for each chunk
