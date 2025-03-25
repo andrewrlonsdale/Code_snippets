@@ -1,0 +1,19 @@
+WITH StandardizedData AS (
+    SELECT
+        CASE
+            WHEN column_name IS NULL OR TRIM(column_name) = '' THEN 'Missing'
+            ELSE column_name
+        END AS standardized_value
+    FROM your_table
+),
+ValueCounts AS (
+    SELECT
+        standardized_value,
+        COUNT(*) AS value_count
+    FROM StandardizedData
+    GROUP BY standardized_value
+    ORDER BY value_count DESC
+)
+SELECT *
+FROM ValueCounts
+LIMIT 5;
