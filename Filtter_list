@@ -1,0 +1,31 @@
+# Main list
+main_list = ['apple', 'banana', 'cherry', 'date', 'elderberry', 'fig', 'grape']
+
+# Three sub-lists
+list1 = ['apple', 'banana', 'kiwi']
+list2 = ['cherry', 'date', 'fig', 'mango']
+list3 = ['grape', 'pear', 'apple']
+
+# Store the lists in a dictionary for easy iteration
+lists = {'list1': list1, 'list2': list2, 'list3': list3}
+
+# Iterate through each list and calculate counts
+results = {}
+for name, sublist in lists.items():
+    in_main = [item for item in sublist if item in main_list]  # Items in the main list
+    not_in_main = [item for item in sublist if item not in main_list]  # Items not in the main list
+
+    # Store the results
+    results[name] = {
+        'in_main': in_main,
+        'not_in_main': not_in_main,
+        'count_in_main': len(in_main),
+        'count_not_in_main': len(not_in_main)
+    }
+
+# Print the results
+for name, result in results.items():
+    print(f"Results for {name}:")
+    print(f"  In main list: {result['in_main']} (Count: {result['count_in_main']})")
+    print(f"  Not in main list: {result['not_in_main']} (Count: {result['count_not_in_main']})")
+    print()
