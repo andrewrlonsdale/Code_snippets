@@ -1,31 +1,39 @@
+import pandas as pd
+
 # Main list
 main_list = ['apple', 'banana', 'cherry', 'date', 'elderberry', 'fig', 'grape']
 
-# Three sub-lists
+# Three sub-lists with origins
 list1 = ['apple', 'banana', 'kiwi']
 list2 = ['cherry', 'date', 'fig', 'mango']
 list3 = ['grape', 'pear', 'apple']
 
-# Store the lists in a dictionary for easy iteration
-lists = {'list1': list1, 'list2': list2, 'list3': list3}
+# Add origins for each list
+lists = {'test1': list1, 'test2': list2, 'test3': list3}
 
-# Iterate through each list and calculate counts
-results = {}
-for name, sublist in lists.items():
-    in_main = [item for item in sublist if item in main_list]  # Items in the main list
-    not_in_main = [item for item in sublist if item not in main_list]  # Items not in the main list
+# Prepare a list to store rows for the DataFrame
+rows = []
 
-    # Store the results
-    results[name] = {
-        'in_main': in_main,
-        'not_in_main': not_in_main,
-        'count_in_main': len(in_main),
-        'count_not_in_main': len(not_in_main)
-    }
+# Iterate through each list and calculate results
+for origin, sublist in lists.items():
+    for item in sublist:
+        # Check if the item is in the main list
+        in_main = item in main_list
 
-# Print the results
-for name, result in results.items():
-    print(f"Results for {name}:")
-    print(f"  In main list: {result['in_main']} (Count: {result['count_in_main']})")
-    print(f"  Not in main list: {result['not_in_main']} (Count: {result['count_not_in_main']})")
-    print()
+        # Append a row for each variable
+        rows.append({
+            'Variable': item,
+            'In_Main': in_main,  # True if in main list, False otherwise
+            'Not_In_Main': not in_main,  # Opposite of In_Main
+            'Origin': origin  # Origin of the variable (e.g., test1, test2, test3)
+        })
+
+# Convert rows to a DataFrame
+df = pd.DataFrame(rows)
+
+# Add counts for each origin
+df['Count_In_Main'] = df.groupby('Origin')['In_Main'].transform('sum')  # Count of True in In_Main
+df['Count_Not_In_Main'] = df.groupby('Origin')['Not_In_Main'].transform('sum')  # Count of True in Not_In_Main
+
+# Display the DataFrame
+print(df)
