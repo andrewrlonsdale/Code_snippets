@@ -1,0 +1,1 @@
+=TEXTJOIN(",", TRUE, FILTER(H:H, (G:G=A2)*(ISNA(MATCH(H:H, FILTER(K:K, J:J=A2, ""), 0))), "")) & IF(TEXTJOIN(",", TRUE, FILTER(K:K, (J:J=A2)*(ISNA(MATCH(K:K, FILTER(H:H, G:G=A2, ""), 0))), ""))<>"", "," & TEXTJOIN(",", TRUE, FILTER(K:K, (J:J=A2)*(ISNA(MATCH(K:K, FILTER(H:H, G:G=A2, ""), 0))), "")), "")
